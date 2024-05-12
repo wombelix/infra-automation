@@ -1,0 +1,484 @@
+# IacOpenTofuUserAndStateBackendResources
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: IAC OpenTofu User and State Backend resources
+
+Parameters:
+  KMSStackName:
+    Type: String
+  Serial:
+    Type: Number
+    Default: 1
+    Description: Increment this to rotate IAM User credentials
+  ParameterNameForAccessKey:
+    Type: String
+    Default: /wombelix/sideprojects/infrastructure/iac-opentufu-accesskey
+  ParameterNameForSecretKey:
+    Type: String
+    Default: /wombelix/sideprojects/infrastructure/iac-opentufu-secretkey
+  CustomResourceLambdaName:
+    Type: String
+    Default: CfnCustomResourceSecureStringInParamterStore
+  BucketNameForOpenTofu:
+    Type: String
+    Default: wombelix-sideprojects-iac-opentofu
+
+Resources:
+  CustomResourceLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: CustomResourceLambdaRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 
+                - "lambda.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+
+  CustomResourceLambdaRolePolicy:
+    Type: AWS::IAM::RolePolicy
+    Properties:
+      RoleName: !Ref CustomResourceLambdaRole
+      PolicyName: CustomResourceLambdaPolicy
+      PolicyDocument:
+        Statement:
+          # Grant access to Parameter Store resources
+          - Effect: Allow
+            Action:
+              - ssm:PutParameter
+              - ssm:DeleteParameter
+            Resource:
+              - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:${ParameterNameForAccessKey}
+              - !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:${ParameterNameForSecretKey}
+          # Grant access to CloudWatch
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+            Resource:
+              - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*
+          - Effect: Allow
+            Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource:
+              - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${CustomResourceLambdaName}:*
+            # Grant access to the encryption key
+          - Effect: Allow
+            Action:
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:CreateGrant
+            Resource:
+              - Fn::ImportValue:
+                  !Sub ${KMSStackName}-KMSKeyBackendEncryptionArn
+
+  CustomResourceLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Create/Update/Delete SecureString Values in SSM Parameter Store
+      FunctionName: !Ref CustomResourceLambdaName
+      Role: !GetAtt CustomResourceLambdaRole.Arn
+      Timeout: 10
+      Handler: index.lambda_handler
+      Runtime: python3.12
+      Code:
+        ZipFile: |
+          # SPDX-FileCopyrightText: 2024 Dominik Wombacher <dominik@wombacher.cc>
+          #
+          # SPDX-License-Identifier: MIT
+
+          # Bootstrapped with 'Custom generic CloudFormation resource example'
+          # https://github.com/stelligent/cloudformation-custom-resources
+          # Inspired by 'Creating Secure String in AWS System Manager Parameter Store via AWS CloudFormation'
+          # https://rnanthan.medium.com/creating-secure-string-in-aws-system-manager-parameter-store-via-aws-cloudformation-f3ab62d9d4c3
+
+          import boto3
+          import json
+          import logging
+          from urllib.request import build_opener, HTTPHandler, Request
+
+          LOGGER = logging.getLogger()
+          LOGGER.setLevel(logging.DEBUG)
+
+          def lambda_handler(event, context):
+              try:
+                  LOGGER.info('REQUEST RECEIVED:\n %s', event)
+                  LOGGER.info('REQUEST RECEIVED:\n %s', context)
+
+                  parameter_name = event['ResourceProperties']['Name']
+                  parameter_value = event['ResourceProperties']['Value']
+                  LOGGER.debug('Parameter Name:\n %s', parameter_name)
+                  LOGGER.debug('Parameter Value:\n %s', parameter_value)
+
+                  if 'Description' in event['ResourceProperties']:
+                      parameter_description = event['ResourceProperties']['Description']
+                      LOGGER.debug('Parameter Description:\n %s', parameter_description)
+                  else:
+                      parameter_description = ""
+                  
+                  if 'KmsKeyId' in event['ResourceProperties']:
+                      kms_key_id = event['ResourceProperties']['KmsKeyId']
+                      LOGGER.debug('AWS KMS Key ID:\n %s', kms_key_id)
+                  else:
+                      kms_key_id = None
+
+                  if 'Tags' in event['ResourceProperties']:
+                      parameter_tags = event['ResourceProperties']['Tags']
+                      LOGGER.debug('Parameter Tags:\n %s', parameter_tags)
+                  else:
+                      parameter_tags = []
+
+                  client = boto3.client('ssm')
+
+                  if event['RequestType'] == 'Create':
+                      LOGGER.info('CREATE!')
+                      try:
+                          if kms_key_id is not None:
+                              client.put_parameter(
+                                      Name = parameter_name,
+                                      Value = parameter_value,
+                                      Description = parameter_description,
+                                      Type = 'SecureString',
+                                      KeyId = kms_key_id,
+                                      Tier = 'Standard',
+                                      Overwrite = False,
+                                      Tags = parameter_tags
+                                  )
+                          else:
+                              client.put_parameter(
+                                      Name = parameter_name,
+                                      Value = parameter_value,
+                                      Description = parameter_description,
+                                      Type = 'SecureString',
+                                      Tier = 'Standard',
+                                      Overwrite = False,
+                                      Tags = parameter_tags
+                                  )
+                          send_response(event, context, "SUCCESS",
+                                      {"Message": "Resource creation successful!"})
+                      except client.exceptions.ParameterAlreadyExists:
+                          LOGGER.error("Parameter already exists")
+                          send_response(event, context, "FAILED",
+                                  {"Message": "Parameter already exists!"})
+                      except Exception as e:
+                          LOGGER.error("Exception occurred", exc_info=True)
+                          send_response(event, context, "FAILED",
+                                  {"Message": f"Exception occurred - {type(e).__name__} - Resource creation failed!"})
+
+                  elif event['RequestType'] == 'Update':
+                      LOGGER.info('UPDATE!')
+                      try:
+                          if kms_key_id is not None:
+                              client.put_parameter(
+                                      Name = parameter_name,
+                                      Value = parameter_value,
+                                      Description = parameter_description,
+                                      Type = 'SecureString',
+                                      KeyId = kms_key_id,
+                                      Tier = 'Standard',
+                                      Overwrite = True
+                                  )
+                          else:
+                              client.put_parameter(
+                                      Name = parameter_name,
+                                      Value = parameter_value,
+                                      Description = parameter_description,
+                                      Type = 'SecureString',
+                                      Tier = 'Standard',
+                                      Overwrite = True
+                                  )
+                          client.add_tags_to_resource(
+                                  ResourceType = "Parameter",
+                                  ResourceId = parameter_name,
+                                  Tags = parameter_tags
+                              )
+
+                          send_response(event, context, "SUCCESS",
+                                      {"Message": "Resource updated successful!"})
+                      except Exception as e:
+                          LOGGER.error("Exception occurred", exc_info=True)
+                          send_response(event, context, "FAILED",
+                                  {"Message": f"Exception occurred - {type(e).__name__} - Resource update failed!"})
+
+                  elif event['RequestType'] == 'Delete':
+                      LOGGER.info('DELETE!')
+                      try:
+                          client.delete_parameter(Name = parameter_name)
+                          send_response(event, context, "SUCCESS",
+                                  {"Message": "Resource deletion successful!"}
+                          )
+                      except client.exceptions.ParameterNotFound:
+                          LOGGER.warn("Parameter not found.")
+                          send_response(event, context, "SUCCESS",
+                                  {"Message": "Resource doesn't exist, not deletion necessary!"}
+                          )
+                      except Exception as e:
+                          LOGGER.error("Exception occurred", exc_info=True)
+                          send_response(event, context, "FAILED",
+                                  {"Message": f"Exception occurred - {type(e).__name__} - Resource update failed!"})
+
+                  else:
+                      LOGGER.error('FAILED! Unexpected event received from CloudFormation.')
+                      send_response(event, context, "FAILED",
+                                    {"Message": "Unexpected event received from CloudFormation"})
+
+              except Exception as e:
+                  LOGGER.error('FAILED! Exception during processing.', exc_info=True)
+                  send_response(event, context, "FAILED", {
+                      "Message": f"Exception during processing - {type(e).__name__}"})
+
+
+          def send_response(event, context, response_status, response_data):
+              '''Send a resource manipulation status response to CloudFormation'''
+              response_body = json.dumps({
+                  "Status": response_status,
+                  "Reason": "See the details in CloudWatch Log Stream: " + context.log_stream_name,
+                  "PhysicalResourceId": context.log_stream_name,
+                  "StackId": event['StackId'],
+                  "RequestId": event['RequestId'],
+                  "LogicalResourceId": event['LogicalResourceId'],
+                  "Data": response_data
+              })
+
+              LOGGER.info('ResponseURL: %s', event['ResponseURL'])
+              LOGGER.info('ResponseBody: %s', response_body)
+
+              opener = build_opener(HTTPHandler)
+              request = Request(event['ResponseURL'], data=response_body)
+              request.add_header('Content-Type', '')
+              request.add_header('Content-Length', len(response_body))
+              request.get_method = lambda: 'PUT'
+              response = opener.open(request)
+              LOGGER.info("Status code: %s", response.getcode())
+              LOGGER.info("Status message: %s", response.msg)
+
+  IAMUserIACOpenTofu:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: iac-opentofu
+      Tags: 
+        - Key: Environment 
+          Value: Production
+        - Key: Usage 
+          Value: IAC-OpenTofu
+
+  IAMUserIACOpenTofuAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties: 
+      Serial: !Ref Serial
+      Status: Active
+      UserName: !Ref IAMUserIACOpenTofu
+
+  IAMUserIACOpenTofuAccessKeyParameterStore:
+    Type: Custom::CreateSecureStringInParamterStore
+    Properties:
+      ServiceToken: !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${CustomResourceLambdaName}
+      Name: iac-opentofu-accesskey
+      Value: !Ref IAMUserIACOpenTofuAccessKey
+      Description: !Sub "The access key for IAM User ${IAMUserIACOpenTofu}"
+      KmsKeyId: !ImportValue
+                  'Fn::Sub': ${KMSStackName}-KMSKeyBackendEncryptionArn
+      Tags: 
+        "Environment": "Production"
+        "Usage": "IAC-OpenTofu"
+
+  IAMUserIACOpenTofuSecretKeyParameterStore:
+    Type: Custom::CreateSecureStringInParamterStore
+    Properties:
+      ServiceToken: !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${CustomResourceLambdaName}
+      Name: iac-opentofu-secretkey
+      Value: !Ref IAMUserIACOpenTofuAccessKey
+      Description: !Sub "The secret key for IAM User ${IAMUserIACOpenTofu}"
+      KmsKeyId: !ImportValue
+                  'Fn::Sub': ${KMSStackName}-KMSKeyBackendEncryptionArn
+      Tags: 
+        "Environment": "Production"
+        "Usage": "IAC-OpenTofu"
+
+  OpenTofuRemoteBackendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketNameForOpenTofu
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'aws:kms'
+              KMSMasterKeyID: !ImportValue
+                                'Fn::Sub': ${KMSStackName}-KMSKeyBackendEncryptionArn
+            BucketKeyEnabled: true
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: TransitionsForStateFile
+            Status: Enabled
+            Transitions:
+              - TransitionInDays: 7
+                StorageClass: INTELLIGENT_TIERING
+            NoncurrentVersionTransitions:
+              - TransitionInDays: 1
+                StorageClass: GLACIER
+      VersioningConfiguration:
+        Status: Enabled
+      LoggingConfiguration:
+        LogFilePrefix: 'opentofu-logs/'
+      Tags: 
+        - Key: "Environment"
+          Value: "Production"
+        - Key: "Usage"
+          Value: "IAC-OpenTofu"
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+
+  OpenTofuRemoteBackendBucketBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref OpenTofuRemoteBackendBucket
+      PolicyDocument:
+        Statement:
+          - Sid: DenyDeletingOpenTofuStateFiles
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:DeleteObject"
+            Resource:
+              - !Sub "${OpenTofuRemoteBackendBucket.Arn}/*"
+          - Sid: RestrictToTLSRequestsOnly
+            Principal: "*"
+            Action: "s3:*"
+            Effect: Deny
+            Resource:
+              - !GetAtt OpenTofuRemoteBackendBucket.Arn
+              - !Sub "${OpenTofuRemoteBackendBucket.Arn}/*"
+            Condition:
+              Bool:
+                "aws:SecureTransport": "false"
+
+  OpenTofuRemoteBackendDDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: iac-opentofu-remote-backend
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: LockID
+          AttributeType: S
+      KeySchema:
+        - AttributeName: LockID
+          KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !ImportValue
+                          'Fn::Sub': ${KMSStackName}-KMSKeyBackendEncryptionArn
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+      Tags: 
+        - Key: "Environment"
+          Value: "Production"
+        - Key: "Usage"
+          Value: "IAC-OpenTofu"
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+
+  OpenTofuRemoteBackendRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: OpenTofuRemoteBackendRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: 
+                - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:${IAMUserIACOpenTofu}'
+            Action: 'sts:AssumeRole'
+
+  OpenTofuRemoteBackendRolePolicy:
+    Type: AWS::IAM::RolePolicy
+    Properties:
+      RoleName: !Ref OpenTofuRemoteBackendRole
+      PolicyName: OpenTofuRemoteBackendRolePolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: 's3:ListBucket'
+            Resource:
+              - !GetAtt OpenTofuRemoteBackendBucket.Arn
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+            Resource:
+              - !Sub "${OpenTofuRemoteBackendBucket.Arn}/opentofu-states/*"
+          - Effect: Allow
+            Action:
+              - dynamodb:DescribeTable
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:DeleteItem
+            Resource:
+              - !GetAtt OpenTofuRemoteBackendDDB.Arn
+
+  OpenTofuStateEncryptionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: OpenTofuStateEncryptionRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: 
+                - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:${IAMUserIACOpenTofu}'
+            Action: 'sts:AssumeRole'
+
+  OpenTofuStateEncryptionRolePolicy:
+    Type: AWS::IAM::RolePolicy
+    Properties:
+      RoleName: !Ref OpenTofuStateEncryptionRole
+      PolicyName: OpenTofuStateEncryptionRolePolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource:
+              - Fn::ImportValue:
+                  !Sub ${KMSStackName}-KMSKeyBackendEncryptionArn
+
+Outputs:
+  OpenTofuBackendBucketName:
+    Value: !Ref OpenTofuRemoteBackendBucket
+    Export:
+      Name: !Sub ${AWS::StackName}-OpenTofuBackendBucketName
+
+  OpenTofuBackendRegion:
+    Value: !Ref AWS::Region
+    Export:
+      Name: !Sub ${AWS::StackName}-OpenTofuBackendRegion
+
+  OpenTofuBackendDynamoDBArn:
+    Value: !GetAtt OpenTofuRemoteBackendDDB.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-OpenTofuBackendDynamoDBArn
+
+  OpenTofuStateEncryptionRoleArn:
+    Value: !GetAtt OpenTofuStateEncryptionRole.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-OpenTofuStateEncryptionRoleArn
+
+  OpenTofuRemoteBackendRoleArn:
+    Value: !GetAtt OpenTofuRemoteBackendRole.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-OpenTofuRemoteBackendRoleArn
