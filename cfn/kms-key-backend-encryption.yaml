@@ -1,4 +1,4 @@
-# Stack-KMSKeyForBackendEncryption
+# KMSKeyForBackendEncryptionPrimary
 
 AWSTemplateFormatVersion: 2010-09-09
 Description: AWS KMS symetric key for backend encryption - Multi-Region Primary Key (e.g. S3, etcd, OpenTofu)
@@ -42,8 +42,8 @@ Outputs:
   KMSKeyBackendEncryptionName:
     Value: !Ref KMSKeyBackendEncryption
     Export:
-      Name: 'KMSKeyBackendEncryptionName'
+      Name: !Sub ${AWS::StackName}-KMSKeyBackendEncryptionName
   KMSKeyBackendEncryptionArn:
     Value: !GetAtt KMSKeyBackendEncryption.Arn
     Export:
-      Name: 'KMSKeyBackendEncryptionArn'
+      Name: !Sub ${AWS::StackName}-KMSKeyBackendEncryptionArn

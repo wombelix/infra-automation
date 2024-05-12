@@ -41,8 +41,8 @@ Outputs:
   KMSKeyBackendEncryptionReplicaName:
     Value: !Ref KMSKeyBackendEncryptionReplica
     Export:
-      Name: 'KMSKeyBackendEncryptionReplicaName'
+      Name: !Sub ${AWS::StackName}-KMSKeyBackendEncryptionReplicaName
   KMSKeyBackendEncryptionReplicaArn:
     Value: !GetAtt KMSKeyBackendEncryptionReplica.Arn
     Export:
-      Name: 'KMSKeyBackendEncryptionReplicaArn'
+      Name: !Sub ${AWS::StackName}-KMSKeyBackendEncryptionReplicaArn
