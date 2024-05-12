@@ -1,0 +1,48 @@
+# KMSKeyForBackendEncryptionReplica
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: AWS KMS symetric key for backend encryption - Multi-Region Replica Key (e.g. S3, etcd, OpenTofu)
+
+Parameters:
+  KMSKeyBackendEncryptionPrimaryArn:
+    Type: String
+
+Resources:
+  KMSKeyBackendEncryptionReplica:
+    Type: AWS::KMS::ReplicaKey
+    Properties:
+      Description: AWS KMS symetric key for backend encryption - Multi-Region Replica Key (e.g. S3, etcd, OpenTofu)
+      Enabled: True
+      KeyPolicy:
+        Version: 2012-10-17
+        Id: key-backend-encryption
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: DeleteProtection
+            Principal: "*"
+            Effect: Deny
+            Action:
+              - kms:ScheduleKeyDeletion
+            Resource: "*"
+      PendingWindowInDays: 30
+      PrimaryKeyArn: !Ref KMSKeyBackendEncryptionPrimaryArn
+      Tags:
+        - Key: Environment 
+          Value: Production
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+
+Outputs:
+  KMSKeyBackendEncryptionReplicaName:
+    Value: !Ref KMSKeyBackendEncryptionReplica
+    Export:
+      Name: 'KMSKeyBackendEncryptionReplicaName'
+  KMSKeyBackendEncryptionReplicaArn:
+    Value: !GetAtt KMSKeyBackendEncryptionReplica.Arn
+    Export:
+      Name: 'KMSKeyBackendEncryptionReplicaArn'
