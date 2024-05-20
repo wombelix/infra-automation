@@ -425,7 +425,7 @@ Resources:
             Action:
               - sts:AssumeRole
             Condition:
-              ForAnyValue:StringLike:
+              StringLike:
                 aws:PrincipalArn:
                   - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:user/${IAMUserIACOpenTofu}
 
@@ -470,7 +470,7 @@ Resources:
             Action:
               - sts:AssumeRole
             Condition:
-              ForAnyValue:StringLike:
+              StringLike:
                 aws:PrincipalArn:
                   - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:user/${IAMUserIACOpenTofu}
 
@@ -518,3 +518,8 @@ Outputs:
     Value: !GetAtt OpenTofuRemoteBackendRole.Arn
     Export:
       Name: !Sub ${AWS::StackName}-OpenTofuRemoteBackendRoleArn
+
+  OpenTofuIAMUser:
+    Value: !Ref IAMUserIACOpenTofu
+    Export:
+      Name: !Sub ${AWS::StackName}-OpenTofuIAMUser
