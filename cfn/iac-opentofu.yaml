@@ -420,12 +420,11 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              AWS:
-                - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+              AWS: "*"
             Action:
               - sts:AssumeRole
             Condition:
-              StringLike:
+              "ForAnyValue:StringLike":
                 aws:PrincipalArn:
                   - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:user/${IAMUserIACOpenTofu}
 
@@ -455,6 +454,16 @@ Resources:
               - dynamodb:DeleteItem
             Resource:
               - !GetAtt OpenTofuRemoteBackendDDB.Arn
+          - Effect: Allow
+            Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:GenerateDataKey*
+              - kms:ReEncrypt*
+            Resource:
+              - Fn::ImportValue:
+                  !Sub ${KMSStackName}-KMSKeyBackendEncryptionArn
 
   OpenTofuStateEncryptionRole:
     Type: AWS::IAM::Role
@@ -465,12 +474,11 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              AWS:
-                - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+              AWS: "*"
             Action:
               - sts:AssumeRole
             Condition:
-              StringLike:
+              "ForAnyValue:StringLike":
                 aws:PrincipalArn:
                   - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:user/${IAMUserIACOpenTofu}
 
