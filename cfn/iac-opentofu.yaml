@@ -27,7 +27,7 @@ Resources:
   CustomResourceLambdaRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: CustomResourceLambdaRole
+      RoleName: !Sub ${CustomResourceLambdaName}Role
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -42,7 +42,7 @@ Resources:
     Type: AWS::IAM::RolePolicy
     Properties:
       RoleName: !Ref CustomResourceLambdaRole
-      PolicyName: CustomResourceLambdaPolicy
+      PolicyName: !Sub ${CustomResourceLambdaName}Policy
       PolicyDocument:
         Statement:
           # Grant access to Parameter Store resources
@@ -71,7 +71,6 @@ Resources:
             Action:
               - kms:DescribeKey
               - kms:Encrypt
-              - kms:CreateGrant
             Resource:
               - Fn::ImportValue:
                   !Sub ${KMSStackName}-KMSKeyBackendEncryptionArn
@@ -278,7 +277,6 @@ Resources:
               except Exception as e:
                   LOGGER.error('FAILED! Exception while executing http.request.', exc_info=True)
 
-
   IAMUserIACOpenTofu:
     Type: AWS::IAM::User
     Properties:
@@ -297,7 +295,7 @@ Resources:
       UserName: !Ref IAMUserIACOpenTofu
 
   IAMUserIACOpenTofuAccessKeyParameterStore:
-    Type: Custom::CustomResourceLambdaFunction
+    Type: AWS::CloudFormation::CustomResource
     Properties:
       ServiceToken: !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${CustomResourceLambdaName}
       Name: !Ref ParameterNameForAccessKey
@@ -310,10 +308,9 @@ Resources:
           Value: "Production"
         - Key: "Usage"
           Value: "IAC-OpenTofu"
-    DependsOn: CustomResourceLambdaFunction
 
   IAMUserIACOpenTofuSecretKeyParameterStore:
-    Type: Custom::CustomResourceLambdaFunction
+    Type: AWS::CloudFormation::CustomResource
     Properties:
       ServiceToken: !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${CustomResourceLambdaName}
       Name: !Ref ParameterNameForSecretKey
@@ -326,7 +323,6 @@ Resources:
           Value: "Production"
         - Key: "Usage"
           Value: "IAC-OpenTofu"
-    DependsOn: CustomResourceLambdaFunction
 
   OpenTofuRemoteBackendBucket:
     Type: AWS::S3::Bucket
@@ -425,10 +421,13 @@ Resources:
           - Effect: Allow
             Principal:
               AWS:
-                - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:user/${IAMUserIACOpenTofu}'
-            Action: 
+                - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+            Action:
               - sts:AssumeRole
-    DependsOn: IAMUserIACOpenTofu
+            Condition:
+              ForAnyValue:StringLike:
+                aws:PrincipalArn:
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:user/${IAMUserIACOpenTofu}
 
   OpenTofuRemoteBackendRolePolicy:
     Type: AWS::IAM::RolePolicy
@@ -466,8 +465,14 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:user/${IAMUserIACOpenTofu}'
-            Action: 'sts:AssumeRole'
+              AWS:
+                - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+            Action:
+              - sts:AssumeRole
+            Condition:
+              ForAnyValue:StringLike:
+                aws:PrincipalArn:
+                  - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:user/${IAMUserIACOpenTofu}
 
   OpenTofuStateEncryptionRolePolicy:
     Type: AWS::IAM::RolePolicy
@@ -479,11 +484,11 @@ Resources:
         Statement:
           - Effect: Allow
             Action:
-              - kms:Encrypt
               - kms:Decrypt
-              - kms:ReEncrypt*
-              - kms:GenerateDataKey*
               - kms:DescribeKey
+              - kms:Encrypt
+              - kms:GenerateDataKey*
+              - kms:ReEncrypt*
             Resource:
               - Fn::ImportValue:
                   !Sub ${KMSStackName}-KMSKeyBackendEncryptionArn
