@@ -10,12 +10,25 @@
 import boto3
 import json
 import logging
-from urllib.request import build_opener, HTTPHandler, Request
+import urllib3
 
 LOGGER = logging.getLogger()
 LOGGER.setLevel(logging.DEBUG)
 
+SUCCESS = "SUCCESS"
+FAILED = "FAILED"
+
+http = urllib3.PoolManager()
+
+
 def lambda_handler(event, context):
+    response = {
+        'StackId': event['StackId'],
+        'RequestId': event['RequestId'],
+        'LogicalResourceId': event['LogicalResourceId'],
+        'Status': 'SUCCESS',
+        'Data': {}
+    }
     try:
         LOGGER.info('REQUEST RECEIVED:\n %s', event)
         LOGGER.info('REQUEST RECEIVED:\n %s', context)
@@ -23,7 +36,7 @@ def lambda_handler(event, context):
         parameter_name = event['ResourceProperties']['Name']
         parameter_value = event['ResourceProperties']['Value']
         LOGGER.debug('Parameter Name:\n %s', parameter_name)
-        LOGGER.debug('Parameter Value:\n %s', parameter_value)
+        LOGGER.debug('Parameter Value (truncated, first five characters):\n %s', parameter_value[0:5])
 
         if 'Description' in event['ResourceProperties']:
             parameter_description = event['ResourceProperties']['Description']
@@ -69,16 +82,17 @@ def lambda_handler(event, context):
                             Overwrite = False,
                             Tags = parameter_tags
                         )
-                send_response(event, context, "SUCCESS",
-                            {"Message": "Resource creation successful!"})
+                send(event, context, SUCCESS, response, "CustomResourcePhysicalID")
             except client.exceptions.ParameterAlreadyExists:
                 LOGGER.error("Parameter already exists")
-                send_response(event, context, "FAILED",
-                        {"Message": "Parameter already exists!"})
+                response['Status'] = 'FAILED'
+                response['Reason'] = 'Parameter already exists'
+                send(event, context, FAILED, response, "CustomResourcePhysicalID")
             except Exception as e:
                 LOGGER.error("Exception occurred", exc_info=True)
-                send_response(event, context, "FAILED",
-                        {"Message": f"Exception occurred - {type(e).__name__} - Resource creation failed!"})
+                response['Status'] = 'FAILED'
+                response['Reason'] = f"Exception occurred - {type(e).__name__} - Resource creation failed!"
+                send(event, context, FAILED, response, "CustomResourcePhysicalID")
 
         elif event['RequestType'] == 'Update':
             LOGGER.info('UPDATE!')
@@ -108,61 +122,69 @@ def lambda_handler(event, context):
                         Tags = parameter_tags
                     )
 
-                send_response(event, context, "SUCCESS",
-                            {"Message": "Resource updated successful!"})
+                send(event, context, SUCCESS, response, "CustomResourcePhysicalID")
             except Exception as e:
                 LOGGER.error("Exception occurred", exc_info=True)
-                send_response(event, context, "FAILED",
-                        {"Message": f"Exception occurred - {type(e).__name__} - Resource update failed!"})
+                response['Status'] = 'FAILED'
+                response['Reason'] = f"Exception occurred - {type(e).__name__} - Resource update failed!"
+                send(event, context, FAILED, response, "CustomResourcePhysicalID")
 
         elif event['RequestType'] == 'Delete':
             LOGGER.info('DELETE!')
             try:
                 client.delete_parameter(Name = parameter_name)
-                send_response(event, context, "SUCCESS",
-                        {"Message": "Resource deletion successful!"}
-                )
+                send(event, context, SUCCESS, response, "CustomResourcePhysicalID")
             except client.exceptions.ParameterNotFound:
                 LOGGER.warn("Parameter not found.")
-                send_response(event, context, "SUCCESS",
-                        {"Message": "Resource doesn't exist, not deletion necessary!"}
-                )
+                send(event, context, SUCCESS, response, "CustomResourcePhysicalID")
             except Exception as e:
                 LOGGER.error("Exception occurred", exc_info=True)
-                send_response(event, context, "FAILED",
-                        {"Message": f"Exception occurred - {type(e).__name__} - Resource update failed!"})
+                response['Status'] = 'FAILED'
+                response['Reason'] = f"Exception occurred - {type(e).__name__} - Resource deletion failed!"
+                send(event, context, FAILED, response, "CustomResourcePhysicalID")
 
         else:
             LOGGER.error('FAILED! Unexpected event received from CloudFormation.')
-            send_response(event, context, "FAILED",
-                          {"Message": "Unexpected event received from CloudFormation"})
+            response['Status'] = 'FAILED'
+            response['Reason'] = 'Unexpected event received from CloudFormation'
+            send(event, context, FAILED, response, "CustomResourcePhysicalID")
 
     except Exception as e:
         LOGGER.error('FAILED! Exception during processing.', exc_info=True)
-        send_response(event, context, "FAILED", {
-            "Message": f"Exception during processing - {type(e).__name__}"})
+        response['Status'] = 'FAILED'
+        response['Reason'] = f"Exception during processing - {type(e).__name__}"
+        send(event, context, FAILED, response, "CustomResourcePhysicalID")
 
 
-def send_response(event, context, response_status, response_data):
-    '''Send a resource manipulation status response to CloudFormation'''
-    response_body = json.dumps({
-        "Status": response_status,
-        "Reason": "See the details in CloudWatch Log Stream: " + context.log_stream_name,
-        "PhysicalResourceId": context.log_stream_name,
-        "StackId": event['StackId'],
-        "RequestId": event['RequestId'],
-        "LogicalResourceId": event['LogicalResourceId'],
-        "Data": response_data
-    })
+def send(event, context, responseStatus, responseData, physicalResourceId=None, noEcho=False, reason=None):
+    responseUrl = event['ResponseURL']
 
-    LOGGER.info('ResponseURL: %s', event['ResponseURL'])
-    LOGGER.info('ResponseBody: %s', response_body)
+    LOGGER.info(responseUrl)
 
-    opener = build_opener(HTTPHandler)
-    request = Request(event['ResponseURL'], data=response_body)
-    request.add_header('Content-Type', '')
-    request.add_header('Content-Length', len(response_body))
-    request.get_method = lambda: 'PUT'
-    response = opener.open(request)
-    LOGGER.info("Status code: %s", response.getcode())
-    LOGGER.info("Status message: %s", response.msg)
+    responseBody = {
+        'Status' : responseStatus,
+        'Reason' : reason or "See the details in CloudWatch Log Stream: {}".format(context.log_stream_name),
+        'PhysicalResourceId' : physicalResourceId or context.log_stream_name,
+        'StackId' : event['StackId'],
+        'RequestId' : event['RequestId'],
+        'LogicalResourceId' : event['LogicalResourceId'],
+        'NoEcho' : noEcho,
+        'Data' : responseData
+    }
+
+    json_responseBody = json.dumps(responseBody)
+
+    LOGGER.info("Response body:")
+    LOGGER.info(json_responseBody)
+
+    headers = {
+        'content-type' : '',
+        'content-length' : str(len(json_responseBody))
+    }
+
+    try:
+        response = http.request('PUT', responseUrl, headers=headers, body=json_responseBody)
+        LOGGER.info(f"Status code: {response.status}")
+
+    except Exception as e:
+        LOGGER.error('FAILED! Exception while executing http.request.', exc_info=True)
