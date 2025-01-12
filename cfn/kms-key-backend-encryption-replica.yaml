@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 Dominik Wombacher <dominik@wombacher.cc>
+#
+# SPDX-License-Identifier: MIT
+
 # KMSKeyForBackendEncryptionReplica
 
 AWSTemplateFormatVersion: 2010-09-09
@@ -32,7 +36,7 @@ Resources:
       PendingWindowInDays: 30
       PrimaryKeyArn: !Ref KMSKeyBackendEncryptionPrimaryArn
       Tags:
-        - Key: Environment 
+        - Key: Environment
           Value: Production
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 Dominik Wombacher <dominik@wombacher.cc>
+#
+# SPDX-License-Identifier: MIT
+
 # KMSKeyForBackendEncryptionPrimary
 
 AWSTemplateFormatVersion: 2010-09-09
@@ -18,7 +22,7 @@ Resources:
           - Sid: Enable IAM User Permissions
             Effect: Allow
             Principal:
-              AWS: 
+              AWS:
                 - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
             Action: 'kms:*'
             Resource: '*'
@@ -32,8 +36,8 @@ Resources:
       MultiRegion: True
       Origin: AWS_KMS
       PendingWindowInDays: 30
-      Tags: 
-        - Key: Environment 
+      Tags:
+        - Key: Environment
           Value: Production
     DeletionPolicy: Retain
     UpdateReplacePolicy: Retain

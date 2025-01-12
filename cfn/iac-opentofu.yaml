@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 Dominik Wombacher <dominik@wombacher.cc>
+#
+# SPDX-License-Identifier: MIT
+
 # IacOpenTofuUserAndStateBackendResources
 
 AWSTemplateFormatVersion: 2010-09-09
@@ -33,7 +37,7 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              Service: 
+              Service:
                 - "lambda.amazonaws.com"
             Action:
               - "sts:AssumeRole"
@@ -131,7 +135,7 @@ Resources:
                       LOGGER.debug('Parameter Description:\n %s', parameter_description)
                   else:
                       parameter_description = ""
-                  
+
                   if 'KmsKeyId' in event['ResourceProperties']:
                       kms_key_id = event['ResourceProperties']['KmsKeyId']
                       LOGGER.debug('AWS KMS Key ID:\n %s', kms_key_id)
@@ -281,15 +285,15 @@ Resources:
     Type: AWS::IAM::User
     Properties:
       UserName: iac-opentofu
-      Tags: 
-        - Key: Environment 
+      Tags:
+        - Key: Environment
           Value: Production
-        - Key: Usage 
+        - Key: Usage
           Value: IAC-OpenTofu
 
   IAMUserIACOpenTofuAccessKey:
     Type: AWS::IAM::AccessKey
-    Properties: 
+    Properties:
       Serial: !Ref Serial
       Status: Active
       UserName: !Ref IAMUserIACOpenTofu
@@ -303,7 +307,7 @@ Resources:
       Description: !Sub "The access key for IAM User ${IAMUserIACOpenTofu}"
       KmsKeyId: !ImportValue
                   'Fn::Sub': ${KMSStackName}-KMSKeyBackendEncryptionArn
-      Tags: 
+      Tags:
         - Key: "Environment"
           Value: "Production"
         - Key: "Usage"
@@ -318,7 +322,7 @@ Resources:
       Description: !Sub "The secret key for IAM User ${IAMUserIACOpenTofu}"
       KmsKeyId: !ImportValue
                   'Fn::Sub': ${KMSStackName}-KMSKeyBackendEncryptionArn
-      Tags: 
+      Tags:
         - Key: "Environment"
           Value: "Production"
         - Key: "Usage"
@@ -354,7 +358,7 @@ Resources:
         Status: Enabled
       LoggingConfiguration:
         LogFilePrefix: 'opentofu-logs/'
-      Tags: 
+      Tags:
         - Key: "Environment"
           Value: "Production"
         - Key: "Usage"
@@ -403,7 +407,7 @@ Resources:
                           'Fn::Sub': ${KMSStackName}-KMSKeyBackendEncryptionArn
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: false
-      Tags: 
+      Tags:
         - Key: "Environment"
           Value: "Production"
         - Key: "Usage"
