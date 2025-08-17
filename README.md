@@ -4,12 +4,12 @@ SPDX-FileCopyrightText: 2025 Dominik Wombacher <dominik@wombacher.cc>
 SPDX-License-Identifier: CC0-1.0
 -->
 
-# AWS sideprojects infrastructure
+# Infrastructure: Automation
 
-Infrastructure-as-Code (IaC) for my sideprojects at AWS.
+Infrastructure-as-Code (IaC) for 'Automation' Account / Project
 
-[![REUSE status](https://api.reuse.software/badge/git.sr.ht/~wombelix/aws-sideprojects-infrastructure)](https://api.reuse.software/info/git.sr.ht/~wombelix/aws-sideprojects-infrastructure)
-[![builds.sr.ht status](https://builds.sr.ht/~wombelix/aws-sideprojects-infrastructure.svg)](https://builds.sr.ht/~wombelix/aws-sideprojects-infrastructure?)
+[![REUSE status](https://api.reuse.software/badge/git.sr.ht/~wombelix/infra-automation)](https://api.reuse.software/info/git.sr.ht/~wombelix/infra-automation)
+[![builds.sr.ht status](https://builds.sr.ht/~wombelix/infra-automation.svg)](https://builds.sr.ht/~wombelix/infra-automation?)
 
 ## Table of Contents
 
@@ -20,13 +20,13 @@ Infrastructure-as-Code (IaC) for my sideprojects at AWS.
 ## Source
 
 The primary location is:
-[git.sr.ht/~wombelix/aws-sideprojects-infrastructure](https://git.sr.ht/~wombelix/aws-sideprojects-infrastructure)
+[git.sr.ht/~wombelix/infra-automation](https://git.sr.ht/~wombelix/infra-automation)
 
 Mirrors are available on
-[Codeberg](https://codeberg.org/wombelix/aws-sideprojects-infrastructure),
-[Gitlab](https://gitlab.com/wombelix/aws-sideprojects-infrastructure)
+[Codeberg](https://codeberg.org/wombelix/infra-automation),
+[Gitlab](https://gitlab.com/wombelix/infra-automation)
 and
-[GitHub](https://github.com/wombelix/aws-sideprojects-infrastructure).
+[GitHub](https://github.com/wombelix/infra-automation).
 
 ## Contribute
 
