@@ -11,6 +11,9 @@ Description: IAC OpenTofu User and State Backend resources
 Parameters:
   KMSStackName:
     Type: String
+  ReplicaKmsKeyArn:
+    Type: String
+    Description: ARN of the KMS replica key for encryption in destination region
   ReplicaBucketArn:
     Type: String
     Description: ARN of the replica bucket for cross-region replication
@@ -380,12 +383,14 @@ Resources:
           - Id: ReplicateOpenTofuStates
             Status: Enabled
             Prefix: opentofu-states/
+            SourceSelectionCriteria:
+              SseKmsEncryptedObjects:
+                Status: Enabled
             Destination:
               Bucket: !Ref ReplicaBucketArn
-              StorageClass: STANDARD_IA
+              StorageClass: STANDARD
               EncryptionConfiguration:
-                ReplicaKmsKeyID: !ImportValue
-                                   'Fn::Sub': ${KMSStackName}-KMSKeyBackendEncryptionArn
+                ReplicaKmsKeyID: !Ref ReplicaKmsKeyArn
       LoggingConfiguration:
         LogFilePrefix: 'opentofu-logs/'
       Tags:

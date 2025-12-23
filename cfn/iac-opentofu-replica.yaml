@@ -30,32 +30,37 @@ Resources:
             Principal:
               Service: s3.amazonaws.com
             Action: sts:AssumeRole
-      Policies:
-        - PolicyName: OpenTofuRemoteBackendReplicationPolicy
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action:
-                  - s3:GetObjectVersionForReplication
-                  - s3:GetObjectVersionAcl
-                Resource: !Sub "${PrimaryBucketArn}/*"
-              - Effect: Allow
-                Action:
-                  - s3:ListBucket
-                Resource: !Ref PrimaryBucketArn
-              - Effect: Allow
-                Action:
-                  - s3:ReplicateObject
-                  - s3:ReplicateDelete
-                Resource: !Sub "${OpenTofuReplicaBucket.Arn}/*"
-              - Effect: Allow
-                Action:
-                  - kms:Decrypt
-                  - kms:GenerateDataKey
-                Resource:
-                  - Fn::ImportValue:
-                      !Sub ${KMSStackName}-KMSKeyBackendEncryptionReplicaArn
+
+  OpenTofuRemoteBackendReplicationRolePolicy:
+    Type: AWS::IAM::RolePolicy
+    Properties:
+      RoleName: !Ref OpenTofuRemoteBackendReplicationRole
+      PolicyName: OpenTofuRemoteBackendReplicationRolePolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:GetObjectVersionForReplication
+              - s3:GetObjectVersionAcl
+            Resource: !Sub "${PrimaryBucketArn}/*"
+          - Effect: Allow
+            Action:
+              - s3:ListBucket
+            Resource: !Ref PrimaryBucketArn
+          - Effect: Allow
+            Action:
+              - s3:ReplicateObject
+              - s3:ReplicateDelete
+            Resource: !Sub "${OpenTofuReplicaBucket.Arn}/*"
+          - Effect: Allow
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey
+            Resource:
+              - Fn::ImportValue:
+                  !Sub ${KMSStackName}-KMSKeyBackendEncryptionReplicaArn
+
   OpenTofuReplicaBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -74,6 +79,16 @@ Resources:
         RestrictPublicBuckets: true
       VersioningConfiguration:
         Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: TransitionsForStateFile
+            Status: Enabled
+            Transitions:
+              - TransitionInDays: 7
+                StorageClass: INTELLIGENT_TIERING
+            NoncurrentVersionTransitions:
+              - TransitionInDays: 1
+                StorageClass: GLACIER
       Tags:
         - Key: "Environment"
           Value: "Production"
