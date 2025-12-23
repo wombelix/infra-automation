@@ -5,7 +5,7 @@
 # KMSKeyForBackendEncryptionReplica
 
 AWSTemplateFormatVersion: 2010-09-09
-Description: AWS KMS symetric key for backend encryption - Multi-Region Replica Key (e.g. S3, etcd, OpenTofu)
+Description: AWS KMS symmetric key for backend encryption - Multi-Region Replica Key (e.g. S3, etcd, OpenTofu)
 
 Parameters:
   KMSKeyBackendEncryptionPrimaryArn:
@@ -15,7 +15,7 @@ Resources:
   KMSKeyBackendEncryptionReplica:
     Type: AWS::KMS::ReplicaKey
     Properties:
-      Description: AWS KMS symetric key for backend encryption - Multi-Region Replica Key (e.g. S3, etcd, OpenTofu)
+      Description: AWS KMS symmetric key for backend encryption - Multi-Region Replica Key (e.g. S3, etcd, OpenTofu)
       Enabled: True
       KeyPolicy:
         Version: 2012-10-17

@@ -5,14 +5,14 @@
 # KMSKeyForBackendEncryptionPrimary
 
 AWSTemplateFormatVersion: 2010-09-09
-Description: AWS KMS symetric key for backend encryption - Multi-Region Primary Key (e.g. S3, etcd, OpenTofu)
+Description: AWS KMS symmetric key for backend encryption - Multi-Region Primary Key (e.g. S3, etcd, OpenTofu)
 
 Resources:
   KMSKeyBackendEncryption:
     Type: AWS::KMS::Key
     Properties:
       BypassPolicyLockoutSafetyCheck: False
-      Description: AWS KMS symetric key for backend encryption - Multi-Region Primary Key (e.g. S3, etcd, OpenTofu)
+      Description: AWS KMS symmetric key for backend encryption - Multi-Region Primary Key (e.g. S3, etcd, OpenTofu)
       Enabled: True
       EnableKeyRotation: False
       KeyPolicy:
