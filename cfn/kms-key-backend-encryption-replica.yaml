@@ -10,6 +10,8 @@ Description: AWS KMS symmetric key for backend encryption - Multi-Region Replica
 Parameters:
   KMSKeyBackendEncryptionPrimaryArn:
     Type: String
+    AllowedPattern: '^arn:aws[a-zA-Z-]*:kms:[a-z0-9-]+:\d{12}:key/[a-f0-9-]{36}$'
+    ConstraintDescription: Must be a valid KMS key ARN
 
 Resources:
   KMSKeyBackendEncryptionReplica:

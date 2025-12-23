@@ -16,6 +16,8 @@ Parameters:
   IdentityCenterInstanceArn:
     Type: String
     Description: AWS Identity Center Instance ARN
+    AllowedPattern: '^arn:aws[a-zA-Z-]*:sso:::instance/ssoins-[a-zA-Z0-9]+$'
+    ConstraintDescription: Must be a valid AWS Identity Center instance ARN
 
 Resources:
   # https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services

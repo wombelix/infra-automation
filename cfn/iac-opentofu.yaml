@@ -14,12 +14,18 @@ Parameters:
   ReplicaKmsKeyArn:
     Type: String
     Description: ARN of the KMS replica key for encryption in destination region
+    AllowedPattern: '^arn:aws[a-zA-Z-]*:kms:[a-z0-9-]+:\d{12}:key/[a-f0-9-]{36}$'
+    ConstraintDescription: Must be a valid KMS key ARN
   ReplicaBucketArn:
     Type: String
     Description: ARN of the replica bucket for cross-region replication
+    AllowedPattern: '^arn:aws[a-zA-Z-]*:s3:::[a-z0-9.-]{3,63}$'
+    ConstraintDescription: Must be a valid S3 bucket ARN
   ReplicationRoleArn:
     Type: String
     Description: ARN of the S3 replication role from replica stack
+    AllowedPattern: '^arn:aws[a-zA-Z-]*:iam::\d{12}:role/[a-zA-Z0-9+=,.@_-]+$'
+    ConstraintDescription: Must be a valid IAM role ARN
   # to be deleted at the end of IaC refactoring
   Serial:
     Type: Number

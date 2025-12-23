@@ -13,6 +13,8 @@ Parameters:
   PrimaryBucketArn:
     Type: String
     Description: ARN of the primary OpenTofu backend bucket
+    AllowedPattern: '^arn:aws[a-zA-Z-]*:s3:::[a-z0-9.-]{3,63}$'
+    ConstraintDescription: Must be a valid S3 bucket ARN
   BucketNameForOpenTofuReplica:
     Type: String
     Default: wombelix-sideprojects-iac-opentofu-replica
