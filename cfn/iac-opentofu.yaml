@@ -5,21 +5,32 @@
 # IacOpenTofuUserAndStateBackendResources
 
 AWSTemplateFormatVersion: 2010-09-09
+# to be adjusted at the end of IaC refactoring
 Description: IAC OpenTofu User and State Backend resources
 
 Parameters:
   KMSStackName:
     Type: String
+  ReplicaBucketArn:
+    Type: String
+    Description: ARN of the replica bucket for cross-region replication
+  ReplicationRoleArn:
+    Type: String
+    Description: ARN of the S3 replication role from replica stack
+  # to be deleted at the end of IaC refactoring
   Serial:
     Type: Number
     Default: 1
     Description: Increment this to rotate IAM User credentials
+  # to be deleted at the end of IaC refactoring
   ParameterNameForAccessKey:
     Type: String
     Default: /wombelix/sideprojects/infrastructure/iac-opentufu-accesskey
+  # to be deleted at the end of IaC refactoring
   ParameterNameForSecretKey:
     Type: String
     Default: /wombelix/sideprojects/infrastructure/iac-opentufu-secretkey
+  # to be deleted at the end of IaC refactoring
   CustomResourceLambdaName:
     Type: String
     Default: CfnCustomResourceSecureStringInParamterStore
@@ -28,6 +39,7 @@ Parameters:
     Default: wombelix-sideprojects-iac-opentofu
 
 Resources:
+  # to be deleted at the end of IaC refactoring
   CustomResourceLambdaRole:
     Type: AWS::IAM::Role
     Properties:
@@ -42,6 +54,7 @@ Resources:
             Action:
               - "sts:AssumeRole"
 
+  # to be deleted at the end of IaC refactoring
   CustomResourceLambdaRolePolicy:
     Type: AWS::IAM::RolePolicy
     Properties:
@@ -79,6 +92,7 @@ Resources:
               - Fn::ImportValue:
                   !Sub ${KMSStackName}-KMSKeyBackendEncryptionArn
 
+  # to be deleted at the end of IaC refactoring
   CustomResourceLambdaFunction:
     Type: AWS::Lambda::Function
     Properties:
@@ -281,6 +295,7 @@ Resources:
               except Exception as e:
                   LOGGER.error('FAILED! Exception while executing http.request.', exc_info=True)
 
+  # to be deleted at the end of IaC refactoring
   IAMUserIACOpenTofu:
     Type: AWS::IAM::User
     Properties:
@@ -291,6 +306,7 @@ Resources:
         - Key: Usage
           Value: IAC-OpenTofu
 
+  # to be deleted at the end of IaC refactoring
   IAMUserIACOpenTofuAccessKey:
     Type: AWS::IAM::AccessKey
     Properties:
@@ -298,6 +314,7 @@ Resources:
       Status: Active
       UserName: !Ref IAMUserIACOpenTofu
 
+  # to be deleted at the end of IaC refactoring
   IAMUserIACOpenTofuAccessKeyParameterStore:
     Type: AWS::CloudFormation::CustomResource
     Properties:
@@ -313,6 +330,7 @@ Resources:
         - Key: "Usage"
           Value: "IAC-OpenTofu"
 
+  # to be deleted at the end of IaC refactoring
   IAMUserIACOpenTofuSecretKeyParameterStore:
     Type: AWS::CloudFormation::CustomResource
     Properties:
@@ -356,6 +374,18 @@ Resources:
                 StorageClass: GLACIER
       VersioningConfiguration:
         Status: Enabled
+      ReplicationConfiguration:
+        Role: !Ref ReplicationRoleArn
+        Rules:
+          - Id: ReplicateOpenTofuStates
+            Status: Enabled
+            Prefix: opentofu-states/
+            Destination:
+              Bucket: !Ref ReplicaBucketArn
+              StorageClass: STANDARD_IA
+              EncryptionConfiguration:
+                ReplicaKmsKeyID: !ImportValue
+                                   'Fn::Sub': ${KMSStackName}-KMSKeyBackendEncryptionArn
       LoggingConfiguration:
         LogFilePrefix: 'opentofu-logs/'
       Tags:
@@ -427,6 +457,7 @@ Resources:
               AWS: "*"
             Action:
               - sts:AssumeRole
+            # to be adjusted at the end of IaC refactoring
             Condition:
               "ForAnyValue:StringLike":
                 aws:PrincipalArn:
@@ -481,6 +512,7 @@ Resources:
               AWS: "*"
             Action:
               - sts:AssumeRole
+            # to be adjusted at the end of IaC refactoring
             Condition:
               "ForAnyValue:StringLike":
                 aws:PrincipalArn:
@@ -511,6 +543,11 @@ Outputs:
     Export:
       Name: !Sub ${AWS::StackName}-OpenTofuBackendBucketName
 
+  OpenTofuBackendBucketArn:
+    Value: !GetAtt OpenTofuRemoteBackendBucket.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-OpenTofuBackendBucketArn
+
   OpenTofuBackendRegion:
     Value: !Ref AWS::Region
     Export:
@@ -531,6 +568,7 @@ Outputs:
     Export:
       Name: !Sub ${AWS::StackName}-OpenTofuRemoteBackendRoleArn
 
+  # to be deleted at the end of IaC refactoring
   OpenTofuIAMUser:
     Value: !Ref IAMUserIACOpenTofu
     Export:

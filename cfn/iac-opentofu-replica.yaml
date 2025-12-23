@@ -1,0 +1,129 @@
+# SPDX-FileCopyrightText: 2025 Dominik Wombacher <dominik@wombacher.cc>
+#
+# SPDX-License-Identifier: MIT
+
+# IacOpenTofuStateBackendResourcesReplica
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: IAC OpenTofu State Backend resources replica
+
+Parameters:
+  KMSStackName:
+    Type: String
+  PrimaryBucketArn:
+    Type: String
+    Description: ARN of the primary OpenTofu backend bucket
+  BucketNameForOpenTofuReplica:
+    Type: String
+    Default: wombelix-sideprojects-iac-opentofu-replica
+    Description: Name of the OpenTofu backend bucket for replica
+
+Resources:
+  OpenTofuRemoteBackendReplicationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: OpenTofuRemoteBackendReplicationRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: OpenTofuRemoteBackendReplicationPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObjectVersionForReplication
+                  - s3:GetObjectVersionAcl
+                Resource: !Sub "${PrimaryBucketArn}/*"
+              - Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource: !Ref PrimaryBucketArn
+              - Effect: Allow
+                Action:
+                  - s3:ReplicateObject
+                  - s3:ReplicateDelete
+                Resource: !Sub "${OpenTofuReplicaBucket.Arn}/*"
+              - Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:GenerateDataKey
+                Resource:
+                  - Fn::ImportValue:
+                      !Sub ${KMSStackName}-KMSKeyBackendEncryptionReplicaArn
+  OpenTofuReplicaBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketNameForOpenTofuReplica
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'aws:kms'
+              KMSMasterKeyID: !ImportValue
+                                'Fn::Sub': ${KMSStackName}-KMSKeyBackendEncryptionReplicaArn
+            BucketKeyEnabled: true
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: "Environment"
+          Value: "Production"
+        - Key: "Usage"
+          Value: "IAC-OpenTofu"
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+
+  OpenTofuReplicaBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref OpenTofuReplicaBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowReplicationFromPrimary
+            Effect: Allow
+            Principal:
+              AWS: !GetAtt OpenTofuRemoteBackendReplicationRole.Arn
+            Action:
+              - s3:GetBucketVersioning
+              - s3:PutBucketVersioning
+              - s3:ReplicateObject
+              - s3:ReplicateDelete
+            Resource:
+              - !GetAtt OpenTofuReplicaBucket.Arn
+              - !Sub "${OpenTofuReplicaBucket.Arn}/*"
+          - Sid: RestrictToTLSRequestsOnly
+            Principal: "*"
+            Action: "s3:*"
+            Effect: Deny
+            Resource:
+              - !GetAtt OpenTofuReplicaBucket.Arn
+              - !Sub "${OpenTofuReplicaBucket.Arn}/*"
+            Condition:
+              Bool:
+                "aws:SecureTransport": "false"
+
+Outputs:
+  OpenTofuRemoteBackendReplicationRole:
+    Value: !GetAtt OpenTofuRemoteBackendReplicationRole.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-OpenTofuRemoteBackendReplicationRoleArn
+
+  OpenTofuReplicaBucketName:
+    Value: !Ref OpenTofuReplicaBucket
+    Export:
+      Name: !Sub ${AWS::StackName}-OpenTofuReplicaBucketName
+
+  OpenTofuReplicaBucketArn:
+    Value: !GetAtt OpenTofuReplicaBucket.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-OpenTofuReplicaBucketArn
