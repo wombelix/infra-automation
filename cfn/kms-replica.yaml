@@ -1,0 +1,64 @@
+# SPDX-FileCopyrightText: 2025 Dominik Wombacher <dominik@wombacher.cc>
+#
+# SPDX-License-Identifier: MIT
+
+# KMSKeyForBackendEncryptionReplica
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: AWS KMS symmetric key for backend encryption - Multi-Region Replica Key (e.g. S3, etcd, OpenTofu)
+
+Parameters:
+  KMSKeyBackendEncryptionPrimaryArn:
+    Type: String
+    Description: ARN of the primary multi-region KMS key for backend encryption
+    AllowedPattern: '^arn:aws[a-zA-Z-]*:kms:[a-z0-9-]+:\d{12}:key/[a-f0-9-]{36}$'
+    ConstraintDescription: Must be a valid KMS key ARN
+  BackendEncryptionKmsKeyAlias:
+    Type: String
+    Description: Alias name for the backend encryption KMS key (without alias/ prefix)
+    Default: backend-encryption
+
+Resources:
+  KMSKeyBackendEncryptionReplica:
+    Type: AWS::KMS::ReplicaKey
+    Properties:
+      Description: AWS KMS symmetric key for backend encryption - Multi-Region Replica Key (e.g. S3, etcd, OpenTofu)
+      Enabled: True
+      KeyPolicy:
+        Version: 2012-10-17
+        Statement:
+          - Sid: Enable IAM User Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+            Action: 'kms:*'
+            Resource: '*'
+          - Sid: DeleteProtection
+            Principal: "*"
+            Effect: Deny
+            Action:
+              - kms:ScheduleKeyDeletion
+            Resource: "*"
+      PendingWindowInDays: 30
+      PrimaryKeyArn: !Ref KMSKeyBackendEncryptionPrimaryArn
+      Tags:
+        - Key: Environment
+          Value: Production
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+
+  KMSKeyBackendEncryptionReplicaAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub alias/${BackendEncryptionKmsKeyAlias}
+      TargetKeyId: !Ref KMSKeyBackendEncryptionReplica
+
+Outputs:
+  KMSKeyBackendEncryptionReplicaName:
+    Value: !Ref KMSKeyBackendEncryptionReplica
+    Export:
+      Name: !Sub ${AWS::StackName}-KMSKeyBackendEncryptionReplicaName
+  KMSKeyBackendEncryptionReplicaArn:
+    Value: !GetAtt KMSKeyBackendEncryptionReplica.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-KMSKeyBackendEncryptionReplicaArn
