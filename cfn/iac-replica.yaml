@@ -1,0 +1,158 @@
+# SPDX-FileCopyrightText: 2025 Dominik Wombacher <dominik@wombacher.cc>
+#
+# SPDX-License-Identifier: MIT
+
+# InfrastructureAsCodeResourcesReplica
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: Infrastructure as Code (IaC) resources replica
+
+Parameters:
+  KMSReplicaStackName:
+    Type: String
+    Description: Name of the KMS replica stack that exports the backend encryption key ARN
+    Default: KMSKeyForBackendEncryptionReplica
+  OpenTofuRemoteBackendBucketName:
+    Type: String
+    Description: Name of the primary OpenTofu remote backend S3 bucket
+    Default: dominik-wombacher-iac-opentofu
+  OpenTofuRemoteBackendBucketNameReplica:
+    Type: String
+    Description: Name of the replica OpenTofu remote backend S3 bucket
+    Default: dominik-wombacher-iac-opentofu-replica
+  OpenTofuRemoteBackendReplicationRoleName:
+    Type: String
+    Description: Name of the IAM role for S3 cross-region replication
+    Default: OpenTofuRemoteBackendReplicationRole
+
+Resources:
+  OpenTofuRemoteBackendReplicationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref OpenTofuRemoteBackendReplicationRoleName
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Action: sts:AssumeRole
+
+  OpenTofuRemoteBackendReplicationRolePolicy:
+    Type: AWS::IAM::RolePolicy
+    Properties:
+      RoleName: !Ref OpenTofuRemoteBackendReplicationRole
+      PolicyName: OpenTofuRemoteBackendReplicationRolePolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:GetObjectVersionForReplication
+              - s3:GetObjectVersionAcl
+            Resource: !Sub arn:aws:s3:::${OpenTofuRemoteBackendBucketName}/*
+          - Effect: Allow
+            Action:
+              - s3:ListBucket
+            Resource: !Sub arn:aws:s3:::${OpenTofuRemoteBackendBucketName}
+          - Effect: Allow
+            Action:
+              - s3:ReplicateObject
+              - s3:ReplicateDelete
+            Resource: !Sub "${OpenTofuRemoteBackendBucketReplica.Arn}/*"
+          - Effect: Allow
+            Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:GenerateDataKey
+            Resource:
+              - Fn::ImportValue:
+                  !Sub ${KMSReplicaStackName}-KMSKeyBackendEncryptionReplicaArn
+
+  OpenTofuRemoteBackendBucketReplica:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref OpenTofuRemoteBackendBucketNameReplica
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'aws:kms'
+              KMSMasterKeyID: !ImportValue
+                                'Fn::Sub': ${KMSReplicaStackName}-KMSKeyBackendEncryptionReplicaArn
+            BucketKeyEnabled: true
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      LifecycleConfiguration:
+        Rules:
+          - Id: TransitionsForStateFile
+            Status: Enabled
+            Transitions:
+              - TransitionInDays: 7
+                StorageClass: INTELLIGENT_TIERING
+            NoncurrentVersionTransitions:
+              - TransitionInDays: 1
+                StorageClass: GLACIER
+      Tags:
+        - Key: "Environment"
+          Value: "Production"
+        - Key: "Usage"
+          Value: "IAC-OpenTofu"
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+
+  OpenTofuRemoteBackendBucketReplicaPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref OpenTofuRemoteBackendBucketReplica
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyDeletingOpenTofuStateFiles
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:DeleteObject"
+            Resource:
+              - !Sub "${OpenTofuRemoteBackendBucketReplica.Arn}/*"
+          - Sid: AllowReplicationFromPrimary
+            Effect: Allow
+            Principal:
+              AWS: !GetAtt OpenTofuRemoteBackendReplicationRole.Arn
+            Action:
+              - s3:GetBucketVersioning
+              - s3:PutBucketVersioning
+              - s3:ReplicateObject
+              - s3:ReplicateDelete
+            Resource:
+              - !GetAtt OpenTofuRemoteBackendBucketReplica.Arn
+              - !Sub "${OpenTofuRemoteBackendBucketReplica.Arn}/*"
+          - Sid: RestrictToTLSRequestsOnly
+            Principal: "*"
+            Action: "s3:*"
+            Effect: Deny
+            Resource:
+              - !GetAtt OpenTofuRemoteBackendBucketReplica.Arn
+              - !Sub "${OpenTofuRemoteBackendBucketReplica.Arn}/*"
+            Condition:
+              Bool:
+                "aws:SecureTransport": "false"
+
+Outputs:
+  OpenTofuRemoteBackendReplicationRoleArn:
+    Value: !GetAtt OpenTofuRemoteBackendReplicationRole.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-OpenTofuRemoteBackendReplicationRoleArn
+
+  OpenTofuRemoteBackendBucketReplicaName:
+    Value: !Ref OpenTofuRemoteBackendBucketReplica
+    Export:
+      Name: !Sub ${AWS::StackName}-OpenTofuRemoteBackendBucketReplicaName
+
+  OpenTofuRemoteBackendBucketReplicaArn:
+    Value: !GetAtt OpenTofuRemoteBackendBucketReplica.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-OpenTofuRemoteBackendBucketReplicaArn

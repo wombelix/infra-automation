@@ -1,0 +1,247 @@
+# SPDX-FileCopyrightText: 2025 Dominik Wombacher <dominik@wombacher.cc>
+#
+# SPDX-License-Identifier: MIT
+
+# InfrastructureAsCodeResources
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: Infrastructure as Code (IaC) resources
+
+Parameters:
+  KMSStackName:
+    Type: String
+    Description: Name of the KMS stack that exports the backend encryption key ARN
+    Default: KMSKeyForBackendEncryptionPrimary
+  BackendEncryptionKmsKeyAlias:
+    Type: String
+    Description: Alias name for the backend encryption KMS key (without alias/ prefix)
+    Default: backend-encryption
+  ReplicaRegion:
+    Type: String
+    Description: AWS region where replica resources are deployed
+    Default: eu-west-1
+  OpenTofuRemoteBackendBucketName:
+    Type: String
+    Description: Name of the primary OpenTofu remote backend S3 bucket
+    Default: dominik-wombacher-iac-opentofu
+  OpenTofuRemoteBackendBucketNameReplica:
+    Type: String
+    Description: Name of the replica OpenTofu remote backend S3 bucket
+    Default: dominik-wombacher-iac-opentofu-replica
+  OpenTofuRemoteBackendReplicationRoleName:
+    Type: String
+    Description: Name of the IAM role for S3 cross-region replication
+    Default: OpenTofuRemoteBackendReplicationRole
+  OpenTofuRemoteBackendDDBTableName:
+    Type: String
+    Description: Name of the DynamoDB table for OpenTofu state locking
+    Default: dominik-wombacher-iac-opentofu
+
+Resources:
+  # https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services
+  GitHubOIDCProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        - 7560D6F40FA55195F740EE2B1B7C0B4836CBE103
+
+  OpenTofuRemoteBackendBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref OpenTofuRemoteBackendBucketName
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'aws:kms'
+              KMSMasterKeyID: !ImportValue
+                                'Fn::Sub': ${KMSStackName}-KMSKeyBackendEncryptionArn
+            BucketKeyEnabled: true
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: TransitionsForStateFile
+            Status: Enabled
+            Transitions:
+              - TransitionInDays: 7
+                StorageClass: INTELLIGENT_TIERING
+            NoncurrentVersionTransitions:
+              - TransitionInDays: 1
+                StorageClass: GLACIER
+      VersioningConfiguration:
+        Status: Enabled
+      ReplicationConfiguration:
+        Role: !Sub arn:aws:iam::${AWS::AccountId}:role/${OpenTofuRemoteBackendReplicationRoleName}
+        Rules:
+          - Id: ReplicateOpenTofuStates
+            Status: Enabled
+            Prefix: opentofu-states/
+            SourceSelectionCriteria:
+              SseKmsEncryptedObjects:
+                Status: Enabled
+            Destination:
+              Bucket: !Sub arn:aws:s3:::${OpenTofuRemoteBackendBucketNameReplica}
+              StorageClass: STANDARD
+              EncryptionConfiguration:
+                ReplicaKmsKeyID: !Sub arn:aws:kms:${ReplicaRegion}:${AWS::AccountId}:alias/${BackendEncryptionKmsKeyAlias}
+      LoggingConfiguration:
+        LogFilePrefix: 'opentofu-logs/'
+      Tags:
+        - Key: "Environment"
+          Value: "Production"
+        - Key: "Usage"
+          Value: "IAC-OpenTofu"
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+
+  OpenTofuRemoteBackendBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref OpenTofuRemoteBackendBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyDeletingOpenTofuStateFiles
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:DeleteObject"
+            Resource:
+              - !Sub "${OpenTofuRemoteBackendBucket.Arn}/*"
+          - Sid: RestrictToTLSRequestsOnly
+            Principal: "*"
+            Action: "s3:*"
+            Effect: Deny
+            Resource:
+              - !GetAtt OpenTofuRemoteBackendBucket.Arn
+              - !Sub "${OpenTofuRemoteBackendBucket.Arn}/*"
+            Condition:
+              Bool:
+                "aws:SecureTransport": "false"
+
+  # DynamoDB table for OpenTofu state locking
+  # - DeletionPolicy: Delete - Lock data is ephemeral and can be recreated
+  # - PointInTimeRecoveryEnabled: false - Not needed for transient lock records
+  OpenTofuRemoteBackendDDB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref OpenTofuRemoteBackendDDBTableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: LockID
+          AttributeType: S
+      KeySchema:
+        - AttributeName: LockID
+          KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !ImportValue
+                          'Fn::Sub': ${KMSStackName}-KMSKeyBackendEncryptionArn
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+      Tags:
+        - Key: "Environment"
+          Value: "Production"
+        - Key: "Usage"
+          Value: "IAC-OpenTofu"
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+
+  OpenTofuAccessRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: OpenTofuGitHubActionsRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !GetAtt GitHubOIDCProvider.Arn
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: repo:wombelix/infra-automation:ref:refs/heads/main
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action: sts:AssumeRole
+            Condition:
+              ArnLike:
+                aws:PrincipalArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-reserved/sso.amazonaws.com/*/AWSReservedSSO_AdministratorAccess_*"
+
+  OpenTofuAccessRolePolicy:
+    Type: AWS::IAM::RolePolicy
+    Properties:
+      RoleName: !Ref OpenTofuAccessRole
+      PolicyName: OpenTofuAccessPolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: 's3:ListBucket'
+            Resource:
+              - !GetAtt OpenTofuRemoteBackendBucket.Arn
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+            Resource:
+              - !Sub "${OpenTofuRemoteBackendBucket.Arn}/opentofu-states/*"
+          - Effect: Allow
+            Action:
+              - dynamodb:DescribeTable
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:DeleteItem
+            Resource:
+              - !GetAtt OpenTofuRemoteBackendDDB.Arn
+          - Effect: Allow
+            Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:GenerateDataKey*
+              - kms:ReEncrypt*
+            Resource:
+              - Fn::ImportValue:
+                  !Sub ${KMSStackName}-KMSKeyBackendEncryptionArn
+
+Outputs:
+  OpenTofuRemoteBackendBucketName:
+    Value: !Ref OpenTofuRemoteBackendBucket
+    Export:
+      Name: !Sub ${AWS::StackName}-OpenTofuRemoteBackendBucketName
+
+  OpenTofuRemoteBackendBucketArn:
+    Value: !GetAtt OpenTofuRemoteBackendBucket.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-OpenTofuRemoteBackendBucketArn
+
+  OpenTofuRemoteBackendRegion:
+    Value: !Ref AWS::Region
+    Export:
+      Name: !Sub ${AWS::StackName}-OpenTofuRemoteBackendRegion
+
+  OpenTofuRemoteBackendDDBArn:
+    Value: !GetAtt OpenTofuRemoteBackendDDB.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-OpenTofuRemoteBackendDDBArn
+
+  GitHubOIDCProviderArn:
+    Description: ARN of the GitHub OIDC Provider
+    Value: !GetAtt GitHubOIDCProvider.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-GitHubOIDCProviderArn
+
+  OpenTofuAccessRoleArn:
+    Description: ARN of the OpenTofu Access Role
+    Value: !GetAtt OpenTofuAccessRole.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-OpenTofuAccessRoleArn

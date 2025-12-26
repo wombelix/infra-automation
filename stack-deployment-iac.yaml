@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2025 Dominik Wombacher <dominik@wombacher.cc>
+#
+# SPDX-License-Identifier: MIT-0
+
+template-file-path: cfn/iac.yaml
+parameters:
+  KMSStackName: KMSKeyForBackendEncryptionPrimary
+  BackendEncryptionKmsKeyAlias: backend-encryption
+  ReplicaRegion: eu-west-1
+  OpenTofuRemoteBackendBucketName: dominik-wombacher-iac-opentofu
+  OpenTofuRemoteBackendBucketNameReplica: dominik-wombacher-iac-opentofu-replica
+  OpenTofuRemoteBackendReplicationRoleName: OpenTofuRemoteBackendReplicationRole
+  OpenTofuRemoteBackendDDBTableName: dominik-wombacher-iac-opentofu
+tags:
+  Purpose: IaC
+  Lifecycle: Active
+  Environment: Production
+  Creator: CloudFormation
+  DoNotDelete: True
