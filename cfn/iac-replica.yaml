@@ -11,19 +11,23 @@ Parameters:
   KMSReplicaStackName:
     Type: String
     Description: Name of the KMS replica stack that exports the backend encryption key ARN
-    Default: KMSKeyForBackendEncryptionReplica
+    AllowedPattern: '^[a-zA-Z][a-zA-Z0-9-]*$'
+    ConstraintDescription: Must be a valid CloudFormation stack name (alphanumeric and hyphens, starting with a letter)
   OpenTofuRemoteBackendBucketName:
     Type: String
     Description: Name of the primary OpenTofu remote backend S3 bucket
-    Default: dominik-wombacher-iac-opentofu
+    AllowedPattern: '^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
+    ConstraintDescription: Must be a valid S3 bucket name (3-63 lowercase alphanumeric characters, hyphens, periods)
   OpenTofuRemoteBackendBucketNameReplica:
     Type: String
     Description: Name of the replica OpenTofu remote backend S3 bucket
-    Default: dominik-wombacher-iac-opentofu-replica
+    AllowedPattern: '^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
+    ConstraintDescription: Must be a valid S3 bucket name (3-63 lowercase alphanumeric characters, hyphens, periods)
   OpenTofuRemoteBackendReplicationRoleName:
     Type: String
     Description: Name of the IAM role for S3 cross-region replication
-    Default: OpenTofuRemoteBackendReplicationRole
+    AllowedPattern: '^[a-zA-Z0-9+=,.@_-]+$'
+    ConstraintDescription: Must be a valid IAM role name (alphanumeric and +=,.@_- characters)
 
 Resources:
   OpenTofuRemoteBackendReplicationRole:

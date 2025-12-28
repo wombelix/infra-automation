@@ -11,7 +11,8 @@ Parameters:
   BackendEncryptionKmsKeyAlias:
     Type: String
     Description: Alias name for the backend encryption KMS key (without alias/ prefix)
-    Default: backend-encryption
+    AllowedPattern: '^[a-zA-Z0-9/_-]+$'
+    ConstraintDescription: Must be a valid KMS alias name (alphanumeric, hyphens, underscores, forward slashes)
 
 Resources:
   KMSKeyBackendEncryption:

@@ -11,31 +11,38 @@ Parameters:
   KMSStackName:
     Type: String
     Description: Name of the KMS stack that exports the backend encryption key ARN
-    Default: KMSKeyForBackendEncryptionPrimary
+    AllowedPattern: '^[a-zA-Z][a-zA-Z0-9-]*$'
+    ConstraintDescription: Must be a valid CloudFormation stack name (alphanumeric and hyphens, starting with a letter)
   BackendEncryptionKmsKeyAlias:
     Type: String
     Description: Alias name for the backend encryption KMS key (without alias/ prefix)
-    Default: backend-encryption
+    AllowedPattern: '^[a-zA-Z0-9/_-]+$'
+    ConstraintDescription: Must be a valid KMS alias name (alphanumeric, hyphens, underscores, forward slashes)
   ReplicaRegion:
     Type: String
     Description: AWS region where replica resources are deployed
-    Default: eu-west-1
+    AllowedPattern: '^[a-z]{2}-[a-z]+-\d$'
+    ConstraintDescription: Must be a valid AWS region (e.g., us-east-1, eu-west-1)
   OpenTofuRemoteBackendBucketName:
     Type: String
     Description: Name of the primary OpenTofu remote backend S3 bucket
-    Default: dominik-wombacher-iac-opentofu
+    AllowedPattern: '^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
+    ConstraintDescription: Must be a valid S3 bucket name (3-63 lowercase alphanumeric characters, hyphens, periods)
   OpenTofuRemoteBackendBucketNameReplica:
     Type: String
     Description: Name of the replica OpenTofu remote backend S3 bucket
-    Default: dominik-wombacher-iac-opentofu-replica
+    AllowedPattern: '^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$'
+    ConstraintDescription: Must be a valid S3 bucket name (3-63 lowercase alphanumeric characters, hyphens, periods)
   OpenTofuRemoteBackendReplicationRoleName:
     Type: String
     Description: Name of the IAM role for S3 cross-region replication
-    Default: OpenTofuRemoteBackendReplicationRole
+    AllowedPattern: '^[a-zA-Z0-9+=,.@_-]+$'
+    ConstraintDescription: Must be a valid IAM role name (alphanumeric and +=,.@_- characters)
   OpenTofuRemoteBackendDDBTableName:
     Type: String
     Description: Name of the DynamoDB table for OpenTofu state locking
-    Default: dominik-wombacher-iac-opentofu
+    AllowedPattern: '^[a-zA-Z0-9._-]+$'
+    ConstraintDescription: Must be a valid DynamoDB table name (alphanumeric, hyphens, underscores, periods)
 
 Resources:
   # https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services
