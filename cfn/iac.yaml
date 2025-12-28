@@ -153,10 +153,10 @@ Resources:
     DeletionPolicy: Delete
     UpdateReplacePolicy: Retain
 
-  OpenTofuAccessRole:
+  OpenTofuRemoteBackendRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: OpenTofuGitHubActionsRole
+      RoleName: OpenTofuRemoteBackendRole
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -176,11 +176,11 @@ Resources:
               ArnLike:
                 aws:PrincipalArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-reserved/sso.amazonaws.com/*/AWSReservedSSO_AdministratorAccess_*"
 
-  OpenTofuAccessRolePolicy:
+  OpenTofuRemoteBackendRolePolicy:
     Type: AWS::IAM::RolePolicy
     Properties:
-      RoleName: !Ref OpenTofuAccessRole
-      PolicyName: OpenTofuAccessPolicy
+      RoleName: !Ref OpenTofuRemoteBackendRole
+      PolicyName: OpenTofuRemoteBackendPolicy
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -240,8 +240,8 @@ Outputs:
     Export:
       Name: !Sub ${AWS::StackName}-GitHubOIDCProviderArn
 
-  OpenTofuAccessRoleArn:
-    Description: ARN of the OpenTofu Access Role
-    Value: !GetAtt OpenTofuAccessRole.Arn
+  OpenTofuRemoteBackendRoleArn:
+    Description: ARN of the OpenTofu Remote Backend Role
+    Value: !GetAtt OpenTofuRemoteBackendRole.Arn
     Export:
-      Name: !Sub ${AWS::StackName}-OpenTofuAccessRoleArn
+      Name: !Sub ${AWS::StackName}-OpenTofuRemoteBackendRoleArn
