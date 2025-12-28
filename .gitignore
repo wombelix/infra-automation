@@ -1294,3 +1294,5 @@ secret*
 !go.mod
 **/collections/*/**
 **/roles/*/**
+.claude
+.amazonq
