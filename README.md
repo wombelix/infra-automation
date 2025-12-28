@@ -13,9 +13,46 @@ Infrastructure-as-Code (IaC) for 'Automation' Account / Project
 
 ## Table of Contents
 
+* [Usage](#usage)
 * [Source](#source)
 * [Contribute](#contribute)
 * [License](#license)
+
+## Usage
+
+### Prerequisites
+
+* [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/)
+* [Rain](https://github.com/aws-cloudformation/rain)
+* [Task](https://taskfile.dev/)
+
+### IAM Roles
+
+The IAM roles for CloudFormation are managed in `cfn/iam-cfn-roles.yaml`.
+Two roles exist:
+
+* `CustomerServiceRoleForCloudformationInfraAutomation` -
+  Used by CloudFormation to manage IaC resources (KMS, S3, DynamoDB, IAM)
+* `CustomerServiceRoleForCloudformationInfraAutomationGitSync` -
+  Used by CodeConnections for Git sync
+
+Deploy the roles:
+
+```bash
+task iam-cfn-roles:deploy
+```
+
+Run `task` to list all available tasks.
+
+### Git Sync Stacks
+
+Create CloudFormation stacks with Sync from Git through the AWS console.
+Use the Role ARN from `task iam-cfn-roles:deploy` output as IAM execution role.
+Point to the repo mirror on GitHub and each `stack-deployment-*.yaml` file.
+Create one stack per entry point file.
+
+Deploy `*-replica` stacks in the secondary region (eu-west-1),
+all others in the primary region (eu-central-1).
 
 ## Source
 

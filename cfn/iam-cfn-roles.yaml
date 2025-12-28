@@ -1,0 +1,256 @@
+# SPDX-FileCopyrightText: 2025 Dominik Wombacher <dominik@wombacher.cc>
+#
+# SPDX-License-Identifier: MIT
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "IAM roles for AWS CloudFormation operations including Git sync functionality"
+
+Parameters:
+  GitSyncConnectionIdPrimary:
+    Type: String
+    Description: CodeConnections connection ID for Git sync (eu-central-1)
+    Default: "4772b21f-9fb1-4d12-bedc-e00e2a3f51fd"
+  GitSyncConnectionIdReplica:
+    Type: String
+    Description: CodeConnections connection ID for Git sync (eu-west-1)
+    Default: "66b7693f-9df7-40d2-8747-6181a6dd5d1d"
+  PrimaryRegion:
+    Type: String
+    Description: Primary AWS region for CodeConnections
+    Default: "eu-central-1"
+  ReplicaRegion:
+    Type: String
+    Description: Replica AWS region for CodeConnections
+    Default: "eu-west-1"
+
+Resources:
+  # CloudFormation execution role with least-privilege permissions
+  # to deploy KMS, S3, DynamoDB, and IAM resources defined in this project
+  CloudFormationExecutionRole:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: CustomerServiceRoleForCloudformationInfraAutomation
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CustomerPolicyForCloudformationInfraAutomation
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: KMSKeyManagement
+                Effect: Allow
+                Action:
+                  - kms:CreateKey
+                  - kms:CreateAlias
+                  - kms:DeleteAlias
+                  - kms:DescribeKey
+                  - kms:EnableKeyRotation
+                  - kms:DisableKeyRotation
+                  - kms:GetKeyPolicy
+                  - kms:GetKeyRotationStatus
+                  - kms:ListAliases
+                  - kms:ListResourceTags
+                  - kms:PutKeyPolicy
+                  - kms:ScheduleKeyDeletion
+                  - kms:TagResource
+                  - kms:UntagResource
+                  - kms:UpdateAlias
+                  - kms:UpdateKeyDescription
+                  - kms:ReplicateKey
+                  - kms:UpdatePrimaryRegion
+                Resource: "*"
+              - Sid: S3BucketManagement
+                Effect: Allow
+                Action:
+                  - s3:CreateBucket
+                  - s3:DeleteBucket
+                  - s3:DeleteBucketPolicy
+                  - s3:GetAccelerateConfiguration
+                  - s3:GetBucketAcl
+                  - s3:GetBucketCORS
+                  - s3:GetBucketLocation
+                  - s3:GetBucketLogging
+                  - s3:GetBucketNotification
+                  - s3:GetBucketObjectLockConfiguration
+                  - s3:GetBucketOwnershipControls
+                  - s3:GetBucketPolicy
+                  - s3:GetBucketPublicAccessBlock
+                  - s3:GetBucketTagging
+                  - s3:GetBucketVersioning
+                  - s3:GetBucketWebsite
+                  - s3:GetEncryptionConfiguration
+                  - s3:GetIntelligentTieringConfiguration
+                  - s3:GetInventoryConfiguration
+                  - s3:GetLifecycleConfiguration
+                  - s3:GetMetricsConfiguration
+                  - s3:GetReplicationConfiguration
+                  - s3:ListBucket
+                  - s3:PutAccelerateConfiguration
+                  - s3:PutBucketAcl
+                  - s3:PutBucketCORS
+                  - s3:PutBucketLogging
+                  - s3:PutBucketNotification
+                  - s3:PutBucketObjectLockConfiguration
+                  - s3:PutBucketOwnershipControls
+                  - s3:PutBucketPolicy
+                  - s3:PutBucketPublicAccessBlock
+                  - s3:PutBucketTagging
+                  - s3:PutBucketVersioning
+                  - s3:PutBucketWebsite
+                  - s3:PutEncryptionConfiguration
+                  - s3:PutIntelligentTieringConfiguration
+                  - s3:PutInventoryConfiguration
+                  - s3:PutLifecycleConfiguration
+                  - s3:PutMetricsConfiguration
+                  - s3:PutReplicationConfiguration
+                Resource: "*"
+              - Sid: DynamoDBTableManagement
+                Effect: Allow
+                Action:
+                  - dynamodb:CreateTable
+                  - dynamodb:DeleteTable
+                  - dynamodb:DescribeContinuousBackups
+                  - dynamodb:DescribeTable
+                  - dynamodb:DescribeTimeToLive
+                  - dynamodb:ListTagsOfResource
+                  - dynamodb:TagResource
+                  - dynamodb:UntagResource
+                  - dynamodb:UpdateContinuousBackups
+                  - dynamodb:UpdateTable
+                  - dynamodb:UpdateTimeToLive
+                Resource: "*"
+              - Sid: IAMRoleManagement
+                Effect: Allow
+                Action:
+                  - iam:AttachRolePolicy
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:DeleteRolePolicy
+                  - iam:DetachRolePolicy
+                  - iam:GetRole
+                  - iam:GetRolePolicy
+                  - iam:ListAttachedRolePolicies
+                  - iam:ListRolePolicies
+                  - iam:ListRoleTags
+                  - iam:PassRole
+                  - iam:PutRolePolicy
+                  - iam:TagRole
+                  - iam:UntagRole
+                  - iam:UpdateAssumeRolePolicy
+                  - iam:UpdateRole
+                  - iam:UpdateRoleDescription
+                Resource: "*"
+              - Sid: IAMOIDCProviderManagement
+                Effect: Allow
+                Action:
+                  - iam:CreateOpenIDConnectProvider
+                  - iam:DeleteOpenIDConnectProvider
+                  - iam:GetOpenIDConnectProvider
+                  - iam:ListOpenIDConnectProviders
+                  - iam:TagOpenIDConnectProvider
+                  - iam:UntagOpenIDConnectProvider
+                  - iam:UpdateOpenIDConnectProviderThumbprint
+                Resource: "*"
+              - Sid: CloudFormationManagement
+                Effect: Allow
+                Action:
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:CreateStack
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DeleteStack
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:DescribeStackResources
+                  - cloudformation:DescribeStacks
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:GetTemplate
+                  - cloudformation:GetTemplateSummary
+                  - cloudformation:ListChangeSets
+                  - cloudformation:ListStacks
+                  - cloudformation:UpdateStack
+                  - cloudformation:ValidateTemplate
+                Resource: "*"
+
+  # Allows CodeConnections to sync Git repositories with CloudFormation stacks
+  CloudFormationGitSyncRole:
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: CustomerServiceRoleForCloudformationInfraAutomationGitSync
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: CfnGitSyncTrustPolicyPrimary
+            Effect: Allow
+            Principal:
+              Service: cloudformation.sync.codeconnections.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnLike:
+                aws:SourceArn: !Sub "arn:aws:codeconnections:${PrimaryRegion}:${AWS::AccountId}:connection/${GitSyncConnectionIdPrimary}"
+          - Sid: CfnGitSyncTrustPolicyReplica
+            Effect: Allow
+            Principal:
+              Service: cloudformation.sync.codeconnections.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnLike:
+                aws:SourceArn: !Sub "arn:aws:codeconnections:${ReplicaRegion}:${AWS::AccountId}:connection/${GitSyncConnectionIdReplica}"
+      Policies:
+        - PolicyName: CustomerPolicyForCloudformationInfraAutomationGitSync
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: SyncToCloudFormation
+                Effect: Allow
+                Action:
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:DescribeStacks
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:GetTemplate
+                  - cloudformation:ListChangeSets
+                  - cloudformation:ListStacks
+                  - cloudformation:ValidateTemplate
+                Resource: "*"
+              - Sid: PolicyForManagedRules
+                Effect: Allow
+                Action:
+                  - events:PutRule
+                  - events:PutTargets
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    events:ManagedBy:
+                      - cloudformation.sync.codeconnections.amazonaws.com
+              - Sid: PolicyForDescribingRule
+                Effect: Allow
+                Action: events:DescribeRule
+                Resource: "*"
+
+Outputs:
+  CloudFormationExecutionRoleArn:
+    Description: ARN of the CloudFormation execution role
+    Value: !GetAtt CloudFormationExecutionRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-CloudFormationExecutionRole-Arn"
+
+  CloudFormationGitSyncRoleArn:
+    Description: ARN of the CloudFormation Git sync role
+    Value: !GetAtt CloudFormationGitSyncRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-CloudFormationGitSyncRole-Arn"

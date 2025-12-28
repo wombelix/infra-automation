@@ -1,0 +1,40 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+# SPDX-FileCopyrightText: 2025 Dominik Wombacher <dominik@wombacher.cc>
+#
+# SPDX-License-Identifier: MIT
+
+version: '3'
+
+silent: true
+
+vars:
+  AWS_REGION: eu-central-1
+  CFN_DIR: cfn
+  IAM_CFN_ROLES_STACK: iam-cfn-roles
+  IAM_CFN_ROLES_TEMPLATE: "{{.CFN_DIR}}/iam-cfn-roles.yaml"
+
+tasks:
+  default:
+    desc: List available tasks
+    cmd: task --list
+
+  iam-cfn-roles:deploy:
+    desc: Deploy the IAM CloudFormation roles stack
+    cmds:
+      - rain deploy {{.IAM_CFN_ROLES_TEMPLATE}} {{.IAM_CFN_ROLES_STACK}} --region {{.AWS_REGION}} --capabilities CAPABILITY_NAMED_IAM --yes
+
+  iam-cfn-roles:diff:
+    desc: Show changes between deployed stack and local template
+    cmds:
+      - rain cat {{.IAM_CFN_ROLES_STACK}} --region {{.AWS_REGION}} > /tmp/infra-automation-iam-cfn-roles-deployed.yaml && rain diff /tmp/infra-automation-iam-cfn-roles-deployed.yaml {{.IAM_CFN_ROLES_TEMPLATE}}; rm -f /tmp/infra-automation-iam-cfn-roles-deployed.yaml
+
+  iam-cfn-roles:logs:
+    desc: Show event logs for the IAM CloudFormation roles stack
+    cmds:
+      - rain logs {{.IAM_CFN_ROLES_STACK}} --region {{.AWS_REGION}}
+
+  iam-cfn-roles:rm:
+    desc: Delete the IAM CloudFormation roles stack
+    cmds:
+      - rain rm {{.IAM_CFN_ROLES_STACK}} --region {{.AWS_REGION}}
