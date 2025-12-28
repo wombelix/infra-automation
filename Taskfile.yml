@@ -22,7 +22,7 @@ tasks:
   iam-cfn-roles:deploy:
     desc: Deploy the IAM CloudFormation roles stack
     cmds:
-      - rain deploy {{.IAM_CFN_ROLES_TEMPLATE}} {{.IAM_CFN_ROLES_STACK}} --region {{.AWS_REGION}} --capabilities CAPABILITY_NAMED_IAM --yes
+      - rain deploy {{.IAM_CFN_ROLES_TEMPLATE}} {{.IAM_CFN_ROLES_STACK}} --region {{.AWS_REGION}} --yes
 
   iam-cfn-roles:diff:
     desc: Show changes between deployed stack and local template
