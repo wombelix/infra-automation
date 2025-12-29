@@ -70,8 +70,7 @@ Resources:
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
-              SSEAlgorithm: 'aws:kms'
-            BucketKeyEnabled: true
+              SSEAlgorithm: AES256
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -95,9 +94,6 @@ Resources:
           - Id: ReplicateOpenTofuStates
             Status: Enabled
             Prefix: opentofu-states/
-            SourceSelectionCriteria:
-              SseKmsEncryptedObjects:
-                Status: Enabled
             Destination:
               Bucket: !Sub arn:aws:s3:::${OpenTofuRemoteBackendBucketNameReplica}
               StorageClass: STANDARD
@@ -192,7 +188,6 @@ Resources:
           KeyType: HASH
       SSESpecification:
         SSEEnabled: true
-        SSEType: KMS
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: false
       ResourcePolicy:
