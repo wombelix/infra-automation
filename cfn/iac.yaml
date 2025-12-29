@@ -51,6 +51,11 @@ Parameters:
     Description: Name of the IAM role for OpenTofu state encryption (KMS access)
     AllowedPattern: '^[a-zA-Z0-9+=,.@_-]+$'
     ConstraintDescription: Must be a valid IAM role name (alphanumeric and +=,.@_- characters)
+  ReplicaRegion:
+    Type: String
+    Description: AWS region for the replica resources
+    AllowedPattern: '^[a-z0-9-]+$'
+    ConstraintDescription: Must be a valid AWS region name
 
 Resources:
   # https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services
@@ -103,6 +108,12 @@ Resources:
             Destination:
               Bucket: !Sub arn:${AWS::Partition}:s3:::${OpenTofuRemoteBackendBucketNameReplica}
               StorageClass: STANDARD
+              EncryptionConfiguration:
+                ReplicaKmsKeyID: !Sub
+                  - arn:${AWS::Partition}:kms:${ReplicaRegion}:${AWS::AccountId}:key/${KMSKeyId}
+                  - KMSKeyId:
+                      Fn::ImportValue:
+                        !Sub ${KMSStackName}-KMSKeyBackendEncryptionName
       LoggingConfiguration:
         LogFilePrefix: 'opentofu-logs/'
       Tags:
