@@ -95,6 +95,9 @@ Resources:
           - Id: ReplicateOpenTofuStates
             Status: Enabled
             Prefix: opentofu-states/
+            SourceSelectionCriteria:
+              SseKmsEncryptedObjects:
+                Status: Enabled
             Destination:
               Bucket: !Sub arn:aws:s3:::${OpenTofuRemoteBackendBucketNameReplica}
               StorageClass: STANDARD
