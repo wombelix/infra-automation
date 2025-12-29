@@ -5,8 +5,7 @@
 template-file-path: cfn/iac-replica.yaml
 parameters:
   KMSReplicaStackName: stack-deployment-kms-replica
-  PrimaryRegion: eu-central-1
-  BackendEncryptionKmsKeyAlias: backend-encryption
+  PrimaryKmsKeyArn: arn:aws:kms:eu-central-1:992382418145:key/mrk-9888e66a1d1d4d4c8c92b2a3d3cd2b85
   OpenTofuRemoteBackendBucketName: dominik-wombacher-iac-opentofu
   OpenTofuRemoteBackendBucketNameReplica: dominik-wombacher-iac-opentofu-replica
   OpenTofuRemoteBackendReplicationRoleName: OpenTofuRemoteBackendReplicationRole
