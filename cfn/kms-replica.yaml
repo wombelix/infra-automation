@@ -9,7 +9,7 @@ Parameters:
   KMSKeyBackendEncryptionPrimaryArn:
     Type: String
     Description: ARN of the primary multi-region KMS key for backend encryption
-    AllowedPattern: '^arn:aws[a-zA-Z-]*:kms:[a-z0-9-]+:\d{12}:key/[a-f0-9-]{36}$'
+    AllowedPattern: '^arn:aws[a-zA-Z-]*:kms:[a-z0-9-]+:\d{12}:key/(mrk-[a-f0-9]{32}|[a-f0-9-]{36})$'
     ConstraintDescription: Must be a valid KMS key ARN
   BackendEncryptionKmsKeyAlias:
     Type: String
