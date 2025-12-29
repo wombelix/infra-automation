@@ -5,6 +5,7 @@
 template-file-path: cfn/kms.yaml
 parameters:
   BackendEncryptionKmsKeyAlias: backend-encryption
+  OrganizationId: o-37w8eaobo2
 tags:
   Purpose: IaC
   Lifecycle: Active

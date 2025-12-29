@@ -13,8 +13,14 @@ Parameters:
     Description: Alias name for the backend encryption KMS key (without alias/ prefix)
     AllowedPattern: '^[a-zA-Z0-9/_-]+$'
     ConstraintDescription: Must be a valid KMS alias name (alphanumeric, hyphens, underscores, forward slashes)
+  OrganizationId:
+    Type: String
+    Description: AWS Organizations ID for cross-account access control
+    AllowedPattern: '^o-[a-z0-9]{10,32}$'
+    ConstraintDescription: Must be a valid AWS Organizations ID (e.g., o-exampleorgid)
 
 Resources:
+  # Key rotation not enabled on purpose, mainly cost reasons.
   KMSKeyBackendEncryption:
     Type: AWS::KMS::Key
     Properties:
@@ -38,6 +44,22 @@ Resources:
             Action:
               - kms:ScheduleKeyDeletion
             Resource: "*"
+          - Sid: AllowOrganizationAccess
+            Effect: Allow
+            Principal: "*"
+            Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:GenerateDataKey*
+            Resource: "*"
+            Condition:
+              StringEquals:
+                aws:PrincipalOrgID: !Ref OrganizationId
+              ArnLike:
+                aws:PrincipalArn:
+                  - "arn:aws:iam::*:role/OpenTofuRemoteBackendAccessRole"
+                  - "arn:aws:iam::*:role/GitHubOIDC-*-OpenTofuBackendAccess"
       KeySpec: SYMMETRIC_DEFAULT
       MultiRegion: True
       Origin: AWS_KMS
