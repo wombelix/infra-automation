@@ -215,7 +215,7 @@ Resources:
               StringEquals:
                 aws:SourceAccount: !Ref AWS::AccountId
               ArnLike:
-                aws:SourceArn: !Sub "arn:aws:codeconnections:${PrimaryRegion}:${AWS::AccountId}:connection/${GitSyncConnectionIdPrimary}"
+                aws:SourceArn: !Sub "arn:${AWS::Partition}:codeconnections:${PrimaryRegion}:${AWS::AccountId}:connection/${GitSyncConnectionIdPrimary}"
           - Sid: CfnGitSyncTrustPolicyReplica
             Effect: Allow
             Principal:
@@ -225,7 +225,7 @@ Resources:
               StringEquals:
                 aws:SourceAccount: !Ref AWS::AccountId
               ArnLike:
-                aws:SourceArn: !Sub "arn:aws:codeconnections:${ReplicaRegion}:${AWS::AccountId}:connection/${GitSyncConnectionIdReplica}"
+                aws:SourceArn: !Sub "arn:${AWS::Partition}:codeconnections:${ReplicaRegion}:${AWS::AccountId}:connection/${GitSyncConnectionIdReplica}"
       Policies:
         - PolicyName: CustomerPolicyForCloudformationInfraAutomationGitSync
           PolicyDocument:

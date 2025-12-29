@@ -70,7 +70,10 @@ Resources:
       BucketEncryption:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID:
+                Fn::ImportValue:
+                  !Sub ${KMSStackName}-KMSKeyBackendEncryptionArn
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
         BlockPublicPolicy: true
@@ -89,13 +92,16 @@ Resources:
       VersioningConfiguration:
         Status: Enabled
       ReplicationConfiguration:
-        Role: !Sub arn:aws:iam::${AWS::AccountId}:role/${OpenTofuRemoteBackendReplicationRoleName}
+        Role: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/${OpenTofuRemoteBackendReplicationRoleName}
         Rules:
           - Id: ReplicateOpenTofuStates
             Status: Enabled
             Prefix: opentofu-states/
+            SourceSelectionCriteria:
+              SseKmsEncryptedObjects:
+                Status: Enabled
             Destination:
-              Bucket: !Sub arn:aws:s3:::${OpenTofuRemoteBackendBucketNameReplica}
+              Bucket: !Sub arn:${AWS::Partition}:s3:::${OpenTofuRemoteBackendBucketNameReplica}
               StorageClass: STANDARD
       LoggingConfiguration:
         LogFilePrefix: 'opentofu-logs/'
@@ -156,8 +162,8 @@ Resources:
                 aws:PrincipalOrgID: !Ref OrganizationId
               ArnLike:
                 aws:PrincipalArn:
-                  - "arn:aws:iam::*:role/OpenTofuRemoteBackendAccessRole"
-                  - "arn:aws:iam::*:role/GitHubOIDC-*-OpenTofuBackendAccess"
+                  - !Sub "arn:${AWS::Partition}:iam::*:role/OpenTofuRemoteBackendAccessRole"
+                  - !Sub "arn:${AWS::Partition}:iam::*:role/GitHubOIDC-*-OpenTofuBackendAccess"
           - Sid: AllowOrganizationStateAccess
             Effect: Allow
             Principal: "*"
@@ -171,8 +177,8 @@ Resources:
                 aws:PrincipalOrgID: !Ref OrganizationId
               ArnLike:
                 aws:PrincipalArn:
-                  - "arn:aws:iam::*:role/OpenTofuRemoteBackendAccessRole"
-                  - "arn:aws:iam::*:role/GitHubOIDC-*-OpenTofuBackendAccess"
+                  - !Sub "arn:${AWS::Partition}:iam::*:role/OpenTofuRemoteBackendAccessRole"
+                  - !Sub "arn:${AWS::Partition}:iam::*:role/GitHubOIDC-*-OpenTofuBackendAccess"
 
   # Temporary state file locking, doesn't contain critical data, also no PIT recovery necessary
   OpenTofuRemoteBackendDDB:
@@ -188,6 +194,10 @@ Resources:
           KeyType: HASH
       SSESpecification:
         SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId:
+          Fn::ImportValue:
+            !Sub ${KMSStackName}-KMSKeyBackendEncryptionArn
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: false
       ResourcePolicy:
@@ -208,8 +218,8 @@ Resources:
                   aws:PrincipalOrgID: !Ref OrganizationId
                 ArnLike:
                   aws:PrincipalArn:
-                    - "arn:aws:iam::*:role/OpenTofuRemoteBackendAccessRole"
-                    - "arn:aws:iam::*:role/GitHubOIDC-*-OpenTofuBackendAccess"
+                    - !Sub "arn:${AWS::Partition}:iam::*:role/OpenTofuRemoteBackendAccessRole"
+                    - !Sub "arn:${AWS::Partition}:iam::*:role/GitHubOIDC-*-OpenTofuBackendAccess"
       Tags:
         - Key: "Environment"
           Value: "Production"
@@ -235,11 +245,11 @@ Resources:
                 token.actions.githubusercontent.com:sub: repo:wombelix/infra-automation:ref:refs/heads/main
           - Effect: Allow
             Principal:
-              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+              AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
             Action: sts:AssumeRole
             Condition:
               ArnLike:
-                aws:PrincipalArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-reserved/sso.amazonaws.com/*/AWSReservedSSO_AdministratorAccess_*"
+                aws:PrincipalArn: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-reserved/sso.amazonaws.com/*/AWSReservedSSO_AdministratorAccess_*"
 
   OpenTofuRemoteBackendRolePolicy:
     Type: AWS::IAM::RolePolicy
@@ -267,6 +277,16 @@ Resources:
               - dynamodb:DeleteItem
             Resource:
               - !GetAtt OpenTofuRemoteBackendDDB.Arn
+          - Effect: Allow
+            Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:GenerateDataKey*
+              - kms:ReEncrypt*
+            Resource:
+              - Fn::ImportValue:
+                  !Sub ${KMSStackName}-KMSKeyBackendEncryptionArn
 
   OpenTofuStateEncryptionRole:
     Type: AWS::IAM::Role
@@ -285,11 +305,11 @@ Resources:
                 token.actions.githubusercontent.com:sub: repo:wombelix/infra-automation:ref:refs/heads/main
           - Effect: Allow
             Principal:
-              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+              AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
             Action: sts:AssumeRole
             Condition:
               ArnLike:
-                aws:PrincipalArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-reserved/sso.amazonaws.com/*/AWSReservedSSO_AdministratorAccess_*"
+                aws:PrincipalArn: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-reserved/sso.amazonaws.com/*/AWSReservedSSO_AdministratorAccess_*"
 
   OpenTofuStateEncryptionRolePolicy:
     Type: AWS::IAM::RolePolicy
@@ -371,11 +391,11 @@ Resources:
                 token.actions.githubusercontent.com:sub: repo:wombelix/git-repo-mgmt:ref:refs/heads/main
           - Effect: Allow
             Principal:
-              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+              AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
             Action: sts:AssumeRole
             Condition:
               ArnLike:
-                aws:PrincipalArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-reserved/sso.amazonaws.com/*/AWSReservedSSO_AdministratorAccess_*"
+                aws:PrincipalArn: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-reserved/sso.amazonaws.com/*/AWSReservedSSO_AdministratorAccess_*"
 
   GitRepoMgmtRolePolicy:
     Type: AWS::IAM::RolePolicy
@@ -396,7 +416,7 @@ Resources:
               - iam:ListRoleTags
               - iam:GetRole
             Resource:
-              - !Sub "arn:aws:iam::${AWS::AccountId}:role/GitHubOIDC-*-OpenTofuBackendAccess"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/GitHubOIDC-*-OpenTofuBackendAccess"
             Condition:
               StringEquals:
                 "iam:PermissionsBoundary": !Ref GitRepoMgmtPermissionBoundary
@@ -407,7 +427,7 @@ Resources:
             Action:
               - iam:DeleteRole
             Resource:
-              - !Sub "arn:aws:iam::${AWS::AccountId}:role/GitHubOIDC-*-OpenTofuBackendAccess"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/GitHubOIDC-*-OpenTofuBackendAccess"
             Condition:
               StringEquals:
                 "iam:PermissionsBoundary": !Ref GitRepoMgmtPermissionBoundary
@@ -420,7 +440,7 @@ Resources:
               - iam:GetRolePolicy
               - iam:ListRolePolicies
             Resource:
-              - !Sub "arn:aws:iam::${AWS::AccountId}:role/GitHubOIDC-*-OpenTofuBackendAccess"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/GitHubOIDC-*-OpenTofuBackendAccess"
             Condition:
               StringEquals:
                 "iam:PermissionsBoundary": !Ref GitRepoMgmtPermissionBoundary

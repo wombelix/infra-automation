@@ -56,8 +56,8 @@ Resources:
                 aws:PrincipalOrgID: !Ref OrganizationId
               ArnLike:
                 aws:PrincipalArn:
-                  - "arn:aws:iam::*:role/OpenTofuRemoteBackendAccessRole"
-                  - "arn:aws:iam::*:role/GitHubOIDC-*-OpenTofuBackendAccess"
+                  - !Sub "arn:${AWS::Partition}:iam::*:role/OpenTofuRemoteBackendAccessRole"
+                  - !Sub "arn:${AWS::Partition}:iam::*:role/GitHubOIDC-*-OpenTofuBackendAccess"
       KeySpec: SYMMETRIC_DEFAULT
       MultiRegion: True
       Origin: AWS_KMS

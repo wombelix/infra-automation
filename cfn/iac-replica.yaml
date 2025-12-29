@@ -47,11 +47,11 @@ Resources:
             Action:
               - s3:GetObjectVersionForReplication
               - s3:GetObjectVersionAcl
-            Resource: !Sub arn:aws:s3:::${OpenTofuRemoteBackendBucketName}/*
+            Resource: !Sub arn:${AWS::Partition}:s3:::${OpenTofuRemoteBackendBucketName}/*
           - Effect: Allow
             Action:
               - s3:ListBucket
-            Resource: !Sub arn:aws:s3:::${OpenTofuRemoteBackendBucketName}
+            Resource: !Sub arn:${AWS::Partition}:s3:::${OpenTofuRemoteBackendBucketName}
           - Effect: Allow
             Action:
               - s3:ReplicateObject
