@@ -4,6 +4,7 @@
 
 template-file-path: cfn/iac-replica.yaml
 parameters:
+  KMSStackName: stack-deployment-kms-replica
   OpenTofuRemoteBackendBucketName: dominik-wombacher-iac-opentofu
   OpenTofuRemoteBackendBucketNameReplica: dominik-wombacher-iac-opentofu-replica
   OpenTofuRemoteBackendReplicationRoleName: OpenTofuRemoteBackendReplicationRole
