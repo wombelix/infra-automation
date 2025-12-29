@@ -6,8 +6,6 @@ template-file-path: cfn/iac.yaml
 parameters:
   OrganizationId: o-37w8eaobo2
   KMSStackName: stack-deployment-kms
-  BackendEncryptionKmsKeyAlias: backend-encryption
-  ReplicaRegion: eu-west-1
   OpenTofuRemoteBackendBucketName: dominik-wombacher-iac-opentofu
   OpenTofuRemoteBackendBucketNameReplica: dominik-wombacher-iac-opentofu-replica
   OpenTofuRemoteBackendReplicationRoleName: OpenTofuRemoteBackendReplicationRole

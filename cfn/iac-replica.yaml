@@ -6,16 +6,6 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: Infrastructure as Code (IaC) resources replica
 
 Parameters:
-  KMSReplicaStackName:
-    Type: String
-    Description: Name of the KMS replica stack that exports the backend encryption key ARN
-    AllowedPattern: '^[a-zA-Z][a-zA-Z0-9-]*$'
-    ConstraintDescription: Must be a valid CloudFormation stack name (alphanumeric and hyphens, starting with a letter)
-  PrimaryKmsKeyArn:
-    Type: String
-    Description: ARN of the primary KMS key for decrypting source objects during replication
-    AllowedPattern: '^arn:aws:kms:[a-z0-9-]+:\d{12}:key/(mrk-[a-f0-9]{32}|[a-f0-9-]{36})$'
-    ConstraintDescription: Must be a valid KMS key ARN
   OpenTofuRemoteBackendBucketName:
     Type: String
     Description: Name of the primary OpenTofu remote backend S3 bucket
@@ -67,18 +57,6 @@ Resources:
               - s3:ReplicateObject
               - s3:ReplicateDelete
             Resource: !Sub "${OpenTofuRemoteBackendBucketReplica.Arn}/*"
-          - Effect: Allow
-            Action:
-              - kms:Decrypt
-            Resource:
-              - !Ref PrimaryKmsKeyArn
-          - Effect: Allow
-            Action:
-              - kms:Encrypt
-              - kms:GenerateDataKey
-            Resource:
-              - Fn::ImportValue:
-                  !Sub ${KMSReplicaStackName}-KMSKeyBackendEncryptionReplicaArn
 
   OpenTofuRemoteBackendBucketReplica:
     Type: AWS::S3::Bucket
@@ -88,8 +66,6 @@ Resources:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: 'aws:kms'
-              KMSMasterKeyID: !ImportValue
-                                'Fn::Sub': ${KMSReplicaStackName}-KMSKeyBackendEncryptionReplicaArn
             BucketKeyEnabled: true
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true

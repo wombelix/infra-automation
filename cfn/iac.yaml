@@ -16,16 +16,6 @@ Parameters:
     Description: Name of the KMS stack that exports the backend encryption key ARN
     AllowedPattern: '^[a-zA-Z][a-zA-Z0-9-]*$'
     ConstraintDescription: Must be a valid CloudFormation stack name (alphanumeric and hyphens, starting with a letter)
-  BackendEncryptionKmsKeyAlias:
-    Type: String
-    Description: Alias name for the backend encryption KMS key (without alias/ prefix)
-    AllowedPattern: '^[a-zA-Z0-9/_-]+$'
-    ConstraintDescription: Must be a valid KMS alias name (alphanumeric, hyphens, underscores, forward slashes)
-  ReplicaRegion:
-    Type: String
-    Description: AWS region where replica resources are deployed
-    AllowedPattern: '^[a-z]{2}-[a-z]+-\d$'
-    ConstraintDescription: Must be a valid AWS region (e.g., us-east-1, eu-west-1)
   OpenTofuRemoteBackendBucketName:
     Type: String
     Description: Name of the primary OpenTofu remote backend S3 bucket
@@ -81,8 +71,6 @@ Resources:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: 'aws:kms'
-              KMSMasterKeyID: !ImportValue
-                                'Fn::Sub': ${KMSStackName}-KMSKeyBackendEncryptionArn
             BucketKeyEnabled: true
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
@@ -107,14 +95,9 @@ Resources:
           - Id: ReplicateOpenTofuStates
             Status: Enabled
             Prefix: opentofu-states/
-            SourceSelectionCriteria:
-              SseKmsEncryptedObjects:
-                Status: Enabled
             Destination:
               Bucket: !Sub arn:aws:s3:::${OpenTofuRemoteBackendBucketNameReplica}
               StorageClass: STANDARD
-              EncryptionConfiguration:
-                ReplicaKmsKeyID: !Sub arn:aws:kms:${ReplicaRegion}:${AWS::AccountId}:alias/${BackendEncryptionKmsKeyAlias}
       LoggingConfiguration:
         LogFilePrefix: 'opentofu-logs/'
       Tags:
@@ -207,8 +190,6 @@ Resources:
       SSESpecification:
         SSEEnabled: true
         SSEType: KMS
-        KMSMasterKeyId: !ImportValue
-                          'Fn::Sub': ${KMSStackName}-KMSKeyBackendEncryptionArn
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: false
       ResourcePolicy:
