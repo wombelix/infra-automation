@@ -49,6 +49,7 @@ Resources:
                 Action:
                   - kms:CreateKey
                   - kms:CreateAlias
+                  - kms:CreateGrant
                   - kms:DeleteAlias
                   - kms:DescribeKey
                   - kms:EnableKeyRotation
