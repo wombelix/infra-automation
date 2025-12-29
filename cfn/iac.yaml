@@ -46,6 +46,21 @@ Parameters:
     Description: Name of the DynamoDB table for OpenTofu state locking
     AllowedPattern: '^[a-zA-Z0-9._-]+$'
     ConstraintDescription: Must be a valid DynamoDB table name (alphanumeric, hyphens, underscores, periods)
+  OpenTofuRemoteBackendRoleName:
+    Type: String
+    Description: Name of the IAM role for OpenTofu remote backend access
+    AllowedPattern: '^[a-zA-Z0-9+=,.@_-]+$'
+    ConstraintDescription: Must be a valid IAM role name (alphanumeric and +=,.@_- characters)
+  GitRepoMgmtRoleName:
+    Type: String
+    Description: Name of the IAM role for git-repo-mgmt to create backend access roles
+    AllowedPattern: '^[a-zA-Z0-9+=,.@_-]+$'
+    ConstraintDescription: Must be a valid IAM role name (alphanumeric and +=,.@_- characters)
+  OpenTofuStateEncryptionRoleName:
+    Type: String
+    Description: Name of the IAM role for OpenTofu state encryption (KMS access)
+    AllowedPattern: '^[a-zA-Z0-9+=,.@_-]+$'
+    ConstraintDescription: Must be a valid IAM role name (alphanumeric and +=,.@_- characters)
 
 Resources:
   # https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services
@@ -227,7 +242,7 @@ Resources:
   OpenTofuRemoteBackendRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: OpenTofuRemoteBackendRole
+      RoleName: !Ref OpenTofuRemoteBackendRoleName
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -273,6 +288,38 @@ Resources:
               - dynamodb:DeleteItem
             Resource:
               - !GetAtt OpenTofuRemoteBackendDDB.Arn
+
+  OpenTofuStateEncryptionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref OpenTofuStateEncryptionRoleName
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !GetAtt GitHubOIDCProvider.Arn
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: repo:wombelix/infra-automation:ref:refs/heads/main
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action: sts:AssumeRole
+            Condition:
+              ArnLike:
+                aws:PrincipalArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-reserved/sso.amazonaws.com/*/AWSReservedSSO_AdministratorAccess_*"
+
+  OpenTofuStateEncryptionRolePolicy:
+    Type: AWS::IAM::RolePolicy
+    Properties:
+      RoleName: !Ref OpenTofuStateEncryptionRole
+      PolicyName: OpenTofuStateEncryptionPolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
           - Effect: Allow
             Action:
               - kms:Decrypt
@@ -331,7 +378,7 @@ Resources:
   GitRepoMgmtRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: GitRepoMgmtRole
+      RoleName: !Ref GitRepoMgmtRoleName
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -496,6 +543,12 @@ Outputs:
     Value: !GetAtt OpenTofuRemoteBackendRole.Arn
     Export:
       Name: !Sub ${AWS::StackName}-OpenTofuRemoteBackendRoleArn
+
+  OpenTofuStateEncryptionRoleArn:
+    Description: ARN of the OpenTofu State Encryption Role (KMS access)
+    Value: !GetAtt OpenTofuStateEncryptionRole.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-OpenTofuStateEncryptionRoleArn
 
   GitRepoMgmtRoleArn:
     Description: ARN of the GitRepoMgmt Role for creating backend access roles

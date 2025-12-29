@@ -12,6 +12,9 @@ parameters:
   OpenTofuRemoteBackendBucketNameReplica: dominik-wombacher-iac-opentofu-replica
   OpenTofuRemoteBackendReplicationRoleName: OpenTofuRemoteBackendReplicationRole
   OpenTofuRemoteBackendDDBTableName: dominik-wombacher-iac-opentofu
+  OpenTofuRemoteBackendRoleName: OpenTofuRemoteBackendRole
+  GitRepoMgmtRoleName: GitRepoMgmtRole
+  OpenTofuStateEncryptionRoleName: OpenTofuStateEncryptionRole
 tags:
   Purpose: IaC
   Lifecycle: Active
