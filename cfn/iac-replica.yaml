@@ -65,7 +65,9 @@ Resources:
           - Effect: Allow
             Action:
               - kms:Decrypt
-            Resource: !Sub ${KMSStackName}-KMSKeyBackendEncryptionPrimaryArn
+            Resource:
+              Fn::ImportValue:
+                !Sub ${KMSStackName}-KMSKeyBackendEncryptionPrimaryArn
           - Effect: Allow
             Action:
               - kms:Encrypt
