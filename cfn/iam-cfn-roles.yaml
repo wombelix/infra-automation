@@ -116,10 +116,13 @@ Resources:
                 Action:
                   - dynamodb:CreateTable
                   - dynamodb:DeleteTable
+                  - dynamodb:DeleteResourcePolicy
                   - dynamodb:DescribeContinuousBackups
                   - dynamodb:DescribeTable
                   - dynamodb:DescribeTimeToLive
+                  - dynamodb:GetResourcePolicy
                   - dynamodb:ListTagsOfResource
+                  - dynamodb:PutResourcePolicy
                   - dynamodb:TagResource
                   - dynamodb:UntagResource
                   - dynamodb:UpdateContinuousBackups
