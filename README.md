@@ -54,6 +54,22 @@ Create one stack per entry point file.
 Deploy `*-replica` stacks in the secondary region (eu-west-1),
 all others in the primary region (eu-central-1).
 
+### Stack Deployment Order
+
+Due to cross-stack and cross-region dependencies, deploy stacks in this order:
+
+1. **IAM roles** (eu-central-1): `task iam-cfn-roles:deploy`
+1. **KMS Primary** (eu-central-1): `stack-deployment-kms.yaml`
+1. **KMS Replica** (eu-west-1): `stack-deployment-kms-replica.yaml`
+   * **Note:** Update `KMSKeyBackendEncryptionPrimaryArn` parameter with the
+     ARN exported from the primary KMS stack before deployment
+1. **IaC Replica** (eu-west-1): `stack-deployment-iac-replica.yaml`
+1. **IaC Primary** (eu-central-1): `stack-deployment-iac.yaml`
+
+The IaC Replica must be deployed before IaC Primary because the primary S3
+bucket replication config references the replication IAM role
+created in the replica stack.
+
 ## Source
 
 The primary location is:
@@ -67,12 +83,12 @@ and
 
 ## Contribute
 
-Please don't hesitate to provide Feedback,
-open an Issue or create a Pull / Merge Request.
+Please don't hesitate to provide feedback,
+open an issue, or create a Pull / Merge Request.
 
 Just pick the workflow or platform you prefer and are most comfortable with.
 
-Feedback, bug reports or patches to my sr.ht list
+Feedback, bug reports, or patches sent to my sr.ht list
 [~wombelix/inbox@lists.sr.ht](https://lists.sr.ht/~wombelix/inbox) or via
 [Email and Instant Messaging](https://dominik.wombacher.cc/pages/contact.html)
 are also always welcome.
