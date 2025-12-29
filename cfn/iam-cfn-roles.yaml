@@ -151,6 +151,20 @@ Resources:
                   - iam:UpdateRole
                   - iam:UpdateRoleDescription
                 Resource: "*"
+              - Sid: IAMManagedPolicyManagement
+                Effect: Allow
+                Action:
+                  - iam:CreatePolicy
+                  - iam:CreatePolicyVersion
+                  - iam:DeletePolicy
+                  - iam:DeletePolicyVersion
+                  - iam:GetPolicy
+                  - iam:GetPolicyVersion
+                  - iam:ListPolicyVersions
+                  - iam:SetDefaultPolicyVersion
+                  - iam:TagPolicy
+                  - iam:UntagPolicy
+                Resource: "*"
               - Sid: IAMOIDCProviderManagement
                 Effect: Allow
                 Action:
