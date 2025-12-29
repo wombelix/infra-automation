@@ -11,6 +11,16 @@ Parameters:
     Description: Name of the KMS replica stack that exports the backend encryption key ARN
     AllowedPattern: '^[a-zA-Z][a-zA-Z0-9-]*$'
     ConstraintDescription: Must be a valid CloudFormation stack name (alphanumeric and hyphens, starting with a letter)
+  PrimaryRegion:
+    Type: String
+    Description: AWS region where primary resources are deployed
+    AllowedPattern: '^[a-z]{2}-[a-z]+-\d$'
+    ConstraintDescription: Must be a valid AWS region (e.g., eu-central-1, us-east-1)
+  BackendEncryptionKmsKeyAlias:
+    Type: String
+    Description: Alias name for the backend encryption KMS key (without alias/ prefix)
+    AllowedPattern: '^[a-zA-Z0-9/_-]+$'
+    ConstraintDescription: Must be a valid KMS alias name (alphanumeric, hyphens, underscores, forward slashes)
   OpenTofuRemoteBackendBucketName:
     Type: String
     Description: Name of the primary OpenTofu remote backend S3 bucket
@@ -65,6 +75,10 @@ Resources:
           - Effect: Allow
             Action:
               - kms:Decrypt
+            Resource:
+              - !Sub arn:aws:kms:${PrimaryRegion}:${AWS::AccountId}:alias/${BackendEncryptionKmsKeyAlias}
+          - Effect: Allow
+            Action:
               - kms:Encrypt
               - kms:GenerateDataKey
             Resource:
