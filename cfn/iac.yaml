@@ -123,6 +123,18 @@ Resources:
             Action: "s3:DeleteObject"
             Resource:
               - !Sub "${OpenTofuRemoteBackendBucket.Arn}/*"
+          - Sid: AllowS3LogDelivery
+            Effect: Allow
+            Principal:
+              Service: logging.s3.amazonaws.com
+            Action: s3:PutObject
+            Resource:
+              - !Sub "${OpenTofuRemoteBackendBucket.Arn}/opentofu-logs/*"
+            Condition:
+              ArnLike:
+                aws:SourceArn: !GetAtt OpenTofuRemoteBackendBucket.Arn
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
           - Sid: RestrictToTLSRequestsOnly
             Principal: "*"
             Action: "s3:*"
@@ -133,7 +145,7 @@ Resources:
             Condition:
               Bool:
                 "aws:SecureTransport": "false"
-          # Organization-wide backend access for matchin roles
+          # Organization-wide backend access for matching roles
           # Path restrictions are enforced by the roles attached policies
           - Sid: AllowOrganizationListBucket
             Effect: Allow
