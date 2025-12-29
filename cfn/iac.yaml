@@ -8,6 +8,11 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: Infrastructure as Code (IaC) resources
 
 Parameters:
+  OrganizationId:
+    Type: String
+    Description: AWS Organizations ID for cross-account access control
+    AllowedPattern: '^o-[a-z0-9]{10,32}$'
+    ConstraintDescription: Must be a valid AWS Organizations ID (e.g., o-exampleorgid)
   KMSStackName:
     Type: String
     Description: Name of the KMS stack that exports the backend encryption key ARN
@@ -130,10 +135,39 @@ Resources:
             Condition:
               Bool:
                 "aws:SecureTransport": "false"
+          # Organization-wide backend access for matchin roles
+          # Path restrictions are enforced by the roles attached policies
+          - Sid: AllowOrganizationListBucket
+            Effect: Allow
+            Principal: "*"
+            Action:
+              - s3:ListBucket
+            Resource:
+              - !GetAtt OpenTofuRemoteBackendBucket.Arn
+            Condition:
+              StringEquals:
+                aws:PrincipalOrgID: !Ref OrganizationId
+              ArnLike:
+                aws:PrincipalArn:
+                  - "arn:aws:iam::*:role/OpenTofuRemoteBackendAccessRole"
+                  - "arn:aws:iam::*:role/GitHubOIDC-*-OpenTofuBackendAccess"
+          - Sid: AllowOrganizationStateAccess
+            Effect: Allow
+            Principal: "*"
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+            Resource:
+              - !Sub "${OpenTofuRemoteBackendBucket.Arn}/opentofu-states/*"
+            Condition:
+              StringEquals:
+                aws:PrincipalOrgID: !Ref OrganizationId
+              ArnLike:
+                aws:PrincipalArn:
+                  - "arn:aws:iam::*:role/OpenTofuRemoteBackendAccessRole"
+                  - "arn:aws:iam::*:role/GitHubOIDC-*-OpenTofuBackendAccess"
 
-  # DynamoDB table for OpenTofu state locking
-  # - DeletionPolicy: Delete - Lock data is ephemeral and can be recreated
-  # - PointInTimeRecoveryEnabled: false - Not needed for transient lock records
+  # Temporary state file locking, doesn't contain critical data, also no PIT recovery necessary
   OpenTofuRemoteBackendDDB:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -152,6 +186,26 @@ Resources:
                           'Fn::Sub': ${KMSStackName}-KMSKeyBackendEncryptionArn
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: false
+      ResourcePolicy:
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+            - Sid: AllowOrganizationAccess
+              Effect: Allow
+              Principal: "*"
+              Action:
+                - dynamodb:DescribeTable
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:DeleteItem
+              Resource: "*"
+              Condition:
+                StringEquals:
+                  aws:PrincipalOrgID: !Ref OrganizationId
+                ArnLike:
+                  aws:PrincipalArn:
+                    - "arn:aws:iam::*:role/OpenTofuRemoteBackendAccessRole"
+                    - "arn:aws:iam::*:role/GitHubOIDC-*-OpenTofuBackendAccess"
       Tags:
         - Key: "Environment"
           Value: "Production"
@@ -220,6 +274,186 @@ Resources:
               - Fn::ImportValue:
                   !Sub ${KMSStackName}-KMSKeyBackendEncryptionArn
 
+  # Permission boundary for roles created by git-repo-mgmt
+  # Roles created with this boundary can ONLY access OpenTofu backend resources
+  GitRepoMgmtPermissionBoundary:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: GitRepoMgmtPermissionBoundary
+      Description: Permission boundary for roles created by git-repo-mgmt - limits to backend access only
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          # Only allow S3 access to the backend bucket, opentofu-states prefix
+          - Sid: S3BackendAccess
+            Effect: Allow
+            Action:
+              - s3:ListBucket
+              - s3:GetObject
+              - s3:PutObject
+            Resource:
+              - !GetAtt OpenTofuRemoteBackendBucket.Arn
+              - !Sub "${OpenTofuRemoteBackendBucket.Arn}/opentofu-states/*"
+          # Only allow DynamoDB access to the lock table
+          - Sid: DynamoDBLockAccess
+            Effect: Allow
+            Action:
+              - dynamodb:DescribeTable
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:DeleteItem
+            Resource:
+              - !GetAtt OpenTofuRemoteBackendDDB.Arn
+          # Only allow KMS access to the backend encryption key
+          - Sid: KMSBackendAccess
+            Effect: Allow
+            Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:GenerateDataKey*
+            Resource:
+              - Fn::ImportValue:
+                  !Sub ${KMSStackName}-KMSKeyBackendEncryptionArn
+
+  # Role for git-repo-mgmt to create other OpenTofu backend access roles
+  # Can only create roles matching GitHubOIDC-*-OpenTofuBackendAccess pattern
+  GitRepoMgmtRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: GitRepoMgmtRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !GetAtt GitHubOIDCProvider.Arn
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub: repo:wombelix/git-repo-mgmt:ref:refs/heads/main
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action: sts:AssumeRole
+            Condition:
+              ArnLike:
+                aws:PrincipalArn: !Sub "arn:aws:iam::${AWS::AccountId}:role/aws-reserved/sso.amazonaws.com/*/AWSReservedSSO_AdministratorAccess_*"
+
+  GitRepoMgmtRolePolicy:
+    Type: AWS::IAM::RolePolicy
+    Properties:
+      RoleName: !Ref GitRepoMgmtRole
+      PolicyName: GitRepoMgmtPolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          # Allow creating/managing roles ONLY with specific naming pattern AND permission boundary
+          # iam:PermissionsBoundary condition enforces that created roles MUST have the boundary
+          - Sid: CreateBackendAccessRoles
+            Effect: Allow
+            Action:
+              - iam:CreateRole
+              - iam:TagRole
+              - iam:UntagRole
+              - iam:ListRoleTags
+              - iam:GetRole
+            Resource:
+              - !Sub "arn:aws:iam::${AWS::AccountId}:role/GitHubOIDC-*-OpenTofuBackendAccess"
+            Condition:
+              StringEquals:
+                "iam:PermissionsBoundary": !Ref GitRepoMgmtPermissionBoundary
+          # Allow deleting roles only if they have the permission boundary
+          # This prevents deleting roles that don't belong to git-repo-mgmt
+          - Sid: DeleteBackendAccessRoles
+            Effect: Allow
+            Action:
+              - iam:DeleteRole
+            Resource:
+              - !Sub "arn:aws:iam::${AWS::AccountId}:role/GitHubOIDC-*-OpenTofuBackendAccess"
+            Condition:
+              StringEquals:
+                "iam:PermissionsBoundary": !Ref GitRepoMgmtPermissionBoundary
+          # Allow managing inline policies on the allowed roles (with boundary check)
+          - Sid: ManageBackendAccessRolePolicies
+            Effect: Allow
+            Action:
+              - iam:PutRolePolicy
+              - iam:DeleteRolePolicy
+              - iam:GetRolePolicy
+              - iam:ListRolePolicies
+            Resource:
+              - !Sub "arn:aws:iam::${AWS::AccountId}:role/GitHubOIDC-*-OpenTofuBackendAccess"
+            Condition:
+              StringEquals:
+                "iam:PermissionsBoundary": !Ref GitRepoMgmtPermissionBoundary
+          # Explicitly deny removing permission boundaries - prevents privilege escalation
+          - Sid: DenyRemovingPermissionBoundary
+            Effect: Deny
+            Action:
+              - iam:DeleteRolePermissionsBoundary
+              - iam:PutRolePermissionsBoundary
+            Resource: "*"
+          # Explicitly deny modifying the permission boundary policy itself
+          - Sid: DenyModifyingBoundaryPolicy
+            Effect: Deny
+            Action:
+              - iam:CreatePolicyVersion
+              - iam:DeletePolicy
+              - iam:DeletePolicyVersion
+              - iam:SetDefaultPolicyVersion
+            Resource:
+              - !Ref GitRepoMgmtPermissionBoundary
+          # Allow reading the OIDC provider (needed to reference in trust policies)
+          - Sid: ReadOIDCProvider
+            Effect: Allow
+            Action:
+              - iam:GetOpenIDConnectProvider
+            Resource:
+              - !GetAtt GitHubOIDCProvider.Arn
+          # Allow reading the permission boundary (needed to verify/attach it)
+          - Sid: ReadPermissionBoundary
+            Effect: Allow
+            Action:
+              - iam:GetPolicy
+              - iam:GetPolicyVersion
+            Resource:
+              - !Ref GitRepoMgmtPermissionBoundary
+          # Backend access for git-repo-mgmt own state file
+          - Sid: S3ListBucket
+            Effect: Allow
+            Action: s3:ListBucket
+            Resource:
+              - !GetAtt OpenTofuRemoteBackendBucket.Arn
+          - Sid: S3StateAccess
+            Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+            Resource:
+              - !Sub "${OpenTofuRemoteBackendBucket.Arn}/opentofu-states/git-repo-mgmt/*"
+          - Sid: DynamoDBLocking
+            Effect: Allow
+            Action:
+              - dynamodb:DescribeTable
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:DeleteItem
+            Resource:
+              - !GetAtt OpenTofuRemoteBackendDDB.Arn
+          - Sid: KMSAccess
+            Effect: Allow
+            Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:GenerateDataKey*
+              - kms:ReEncrypt*
+            Resource:
+              - Fn::ImportValue:
+                  !Sub ${KMSStackName}-KMSKeyBackendEncryptionArn
+
 Outputs:
   OpenTofuRemoteBackendBucketName:
     Value: !Ref OpenTofuRemoteBackendBucket
@@ -252,3 +486,21 @@ Outputs:
     Value: !GetAtt OpenTofuRemoteBackendRole.Arn
     Export:
       Name: !Sub ${AWS::StackName}-OpenTofuRemoteBackendRoleArn
+
+  GitRepoMgmtRoleArn:
+    Description: ARN of the GitRepoMgmt Role for creating backend access roles
+    Value: !GetAtt GitRepoMgmtRole.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-GitRepoMgmtRoleArn
+
+  GitRepoMgmtPermissionBoundaryArn:
+    Description: ARN of the Permission Boundary for roles created by git-repo-mgmt
+    Value: !Ref GitRepoMgmtPermissionBoundary
+    Export:
+      Name: !Sub ${AWS::StackName}-GitRepoMgmtPermissionBoundaryArn
+
+  OrganizationId:
+    Description: AWS Organizations ID used for cross-account access
+    Value: !Ref OrganizationId
+    Export:
+      Name: !Sub ${AWS::StackName}-OrganizationId
