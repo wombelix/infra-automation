@@ -1,7 +1,7 @@
 <!--
 SPDX-FileCopyrightText: 2025 Dominik Wombacher <dominik@wombacher.cc>
 
-SPDX-License-Identifier: CC0-1.0
+SPDX-License-Identifier: Apache-2.0
 -->
 
 # Infrastructure: Automation
@@ -79,7 +79,7 @@ are also always welcome.
 
 ## License
 
-Unless otherwise stated: `MIT`
+Unless otherwise stated: `Apache-2.0`
 
 All files contain license information either as
 `header comment` or `corresponding .license` file.

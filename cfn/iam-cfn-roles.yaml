@@ -1,6 +1,6 @@
 # SPDX-FileCopyrightText: 2025 Dominik Wombacher <dominik@wombacher.cc>
 #
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: Apache-2.0
 
 AWSTemplateFormatVersion: '2010-09-09'
 Description: "IAM roles for AWS CloudFormation operations including Git sync functionality"

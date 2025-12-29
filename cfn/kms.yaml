@@ -1,8 +1,6 @@
 # SPDX-FileCopyrightText: 2025 Dominik Wombacher <dominik@wombacher.cc>
 #
-# SPDX-License-Identifier: MIT
-
-# KMSKeyForBackendEncryptionPrimary
+# SPDX-License-Identifier: Apache-2.0
 
 AWSTemplateFormatVersion: 2010-09-09
 Description: AWS KMS symmetric key for backend encryption - Multi-Region Primary Key (e.g. S3, etcd, OpenTofu)

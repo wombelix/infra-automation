@@ -8,4 +8,4 @@ version = 1
 [[annotations]]
 path = ".vscode/*"
 SPDX-FileCopyrightText = "NONE"
-SPDX-License-Identifier = "MIT-0"
+SPDX-License-Identifier = "CC0-1.0"
