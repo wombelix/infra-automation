@@ -7,6 +7,7 @@ parameters:
   # NOTE: Take the Arn from output stack-deployment-kms-KMSKeyBackendEncryptionArn
   KMSKeyBackendEncryptionPrimaryArn: "arn:aws:kms:eu-central-1:992382418145:key/mrk-9888e66a1d1d4d4c8c92b2a3d3cd2b85"
   BackendEncryptionKmsKeyAlias: backend-encryption
+  OrganizationId: "o-37w8eaobo2"
 tags:
   Purpose: IaC
   Lifecycle: Active
