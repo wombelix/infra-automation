@@ -509,6 +509,22 @@ Resources:
               - dynamodb:DeleteItem
             Resource:
               - !GetAtt OpenTofuRemoteBackendDDB.Arn
+          - Sid: SSMParameterAccess
+            Effect: Allow
+            Action:
+              - ssm:GetParameter
+              - ssm:GetParameters
+            Resource:
+              - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/configs/gitea_base_url"
+              - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/secrets/gitea_token"
+              - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/secrets/gitlab_token"
+              - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/secrets/github_token"
+              - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/secrets/srht_token"
+              - !Sub "arn:${AWS::Partition}:ssm:${ReplicaRegion}:${AWS::AccountId}:parameter/configs/gitea_base_url"
+              - !Sub "arn:${AWS::Partition}:ssm:${ReplicaRegion}:${AWS::AccountId}:parameter/secrets/gitea_token"
+              - !Sub "arn:${AWS::Partition}:ssm:${ReplicaRegion}:${AWS::AccountId}:parameter/secrets/gitlab_token"
+              - !Sub "arn:${AWS::Partition}:ssm:${ReplicaRegion}:${AWS::AccountId}:parameter/secrets/github_token"
+              - !Sub "arn:${AWS::Partition}:ssm:${ReplicaRegion}:${AWS::AccountId}:parameter/secrets/srht_token"
           - Sid: KMSAccess
             Effect: Allow
             Action:
@@ -520,6 +536,11 @@ Resources:
             Resource:
               - Fn::ImportValue:
                   !Sub ${KMSStackName}-KMSKeyBackendEncryptionArn
+              - !Sub
+                - arn:${AWS::Partition}:kms:${ReplicaRegion}:${AWS::AccountId}:key/${KMSKeyId}
+                - KMSKeyId:
+                    Fn::ImportValue:
+                      !Sub ${KMSStackName}-KMSKeyBackendEncryptionName
 
 Outputs:
   OpenTofuRemoteBackendBucketName:
