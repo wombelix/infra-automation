@@ -58,6 +58,7 @@ Resources:
                 aws:PrincipalArn:
                   - !Sub "arn:${AWS::Partition}:iam::*:role/OpenTofuRemoteBackendAccessRole"
                   - !Sub "arn:${AWS::Partition}:iam::*:role/GitHubOIDC-*-OpenTofuBackendAccess"
+                  - !Sub "arn:${AWS::Partition}:iam::*:role/GitRepoMgmtRole"
       KeySpec: SYMMETRIC_DEFAULT
       MultiRegion: True
       Origin: AWS_KMS
