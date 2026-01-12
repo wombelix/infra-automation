@@ -446,6 +446,7 @@ Resources:
             Action:
               - iam:GetRole
               - iam:ListRolePolicies
+              - iam:ListAttachedRolePolicies
               - iam:ListRoleTags
             Resource:
               - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/GitHubOIDC-*-ResourceAccess"
