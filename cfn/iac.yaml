@@ -174,7 +174,7 @@ Resources:
               ArnLike:
                 aws:PrincipalArn:
                   - !Sub "arn:${AWS::Partition}:iam::*:role/OpenTofuRemoteBackendAccessRole"
-                  - !Sub "arn:${AWS::Partition}:iam::*:role/GitHubOIDC-*-OpenTofuBackendAccess"
+                  - !Sub "arn:${AWS::Partition}:iam::*:role/GitHubOIDC-*-ResourceAccess"
           - Sid: AllowOrganizationStateAccess
             Effect: Allow
             Principal: "*"
@@ -189,7 +189,7 @@ Resources:
               ArnLike:
                 aws:PrincipalArn:
                   - !Sub "arn:${AWS::Partition}:iam::*:role/OpenTofuRemoteBackendAccessRole"
-                  - !Sub "arn:${AWS::Partition}:iam::*:role/GitHubOIDC-*-OpenTofuBackendAccess"
+                  - !Sub "arn:${AWS::Partition}:iam::*:role/GitHubOIDC-*-ResourceAccess"
 
   # Temporary state file locking, doesn't contain critical data, also no PIT recovery necessary
   OpenTofuRemoteBackendDDB:
@@ -230,7 +230,7 @@ Resources:
                 ArnLike:
                   aws:PrincipalArn:
                     - !Sub "arn:${AWS::Partition}:iam::*:role/OpenTofuRemoteBackendAccessRole"
-                    - !Sub "arn:${AWS::Partition}:iam::*:role/GitHubOIDC-*-OpenTofuBackendAccess"
+                    - !Sub "arn:${AWS::Partition}:iam::*:role/GitHubOIDC-*-ResourceAccess"
       Tags:
         - Key: "Environment"
           Value: "Production"
@@ -382,9 +382,34 @@ Resources:
             Resource:
               - Fn::ImportValue:
                   !Sub ${KMSStackName}-KMSKeyBackendEncryptionArn
+              - !Sub
+                - arn:${AWS::Partition}:kms:${ReplicaRegion}:${AWS::AccountId}:key/${KMSKeyId}
+                - KMSKeyId:
+                    Fn::ImportValue:
+                      !Sub ${KMSStackName}-KMSKeyBackendEncryptionName
+          # Allow SSM Parameter Store read access for project bootstrap
+          - Sid: SSMParameterReadAccess
+            Effect: Allow
+            Action:
+              - ssm:GetParameter
+              - ssm:GetParameters
+              - ssm:GetParametersByPath
+            Resource:
+              - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/projects/*"
+              - !Sub "arn:${AWS::Partition}:ssm:${ReplicaRegion}:${AWS::AccountId}:parameter/projects/*"
+          # Allow assuming cross-account roles within the organization
+          - Sid: CrossAccountAssumeRole
+            Effect: Allow
+            Action:
+              - sts:AssumeRole
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iam::*:role/*-ProjectRole"
+            Condition:
+              StringEquals:
+                "aws:ResourceOrgID": !Ref OrganizationId
 
-  # Role for git-repo-mgmt to create other OpenTofu backend access roles
-  # Can only create roles matching GitHubOIDC-*-OpenTofuBackendAccess pattern
+  # Role for git-repo-mgmt to create resource access roles
+  # Can only create roles matching GitHubOIDC-*-ResourceAccess pattern
   GitRepoMgmtRole:
     Type: AWS::IAM::Role
     Properties:
@@ -427,7 +452,7 @@ Resources:
               - iam:ListRoleTags
               - iam:GetRole
             Resource:
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/GitHubOIDC-*-OpenTofuBackendAccess"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/GitHubOIDC-*-ResourceAccess"
             Condition:
               StringEquals:
                 "iam:PermissionsBoundary": !Ref GitRepoMgmtPermissionBoundary
@@ -438,7 +463,7 @@ Resources:
             Action:
               - iam:DeleteRole
             Resource:
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/GitHubOIDC-*-OpenTofuBackendAccess"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/GitHubOIDC-*-ResourceAccess"
             Condition:
               StringEquals:
                 "iam:PermissionsBoundary": !Ref GitRepoMgmtPermissionBoundary
@@ -451,7 +476,7 @@ Resources:
               - iam:GetRolePolicy
               - iam:ListRolePolicies
             Resource:
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/GitHubOIDC-*-OpenTofuBackendAccess"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/GitHubOIDC-*-ResourceAccess"
             Condition:
               StringEquals:
                 "iam:PermissionsBoundary": !Ref GitRepoMgmtPermissionBoundary
