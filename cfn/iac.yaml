@@ -441,6 +441,15 @@ Resources:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
+          - Sid: ReadBackendAccessRoles
+            Effect: Allow
+            Action:
+              - iam:GetRole
+              - iam:ListRolePolicies
+              - iam:ListRoleTags
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/GitHubOIDC-*-ResourceAccess"
+
           # Allow creating the role and tagging it (boundary not evaluated)
           - Sid: CreateBackendAccessRoles
             Effect: Allow
@@ -466,8 +475,6 @@ Resources:
             Effect: Allow
             Action:
               - iam:UntagRole
-              - iam:ListRoleTags
-              - iam:GetRole
             Resource:
               - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/GitHubOIDC-*-ResourceAccess"
             Condition:
