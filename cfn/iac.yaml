@@ -441,13 +441,30 @@ Resources:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
-          # Allow creating/managing roles ONLY with specific naming pattern AND permission boundary
-          # iam:PermissionsBoundary condition enforces that created roles MUST have the boundary
+          # Allow creating the role and tagging it (boundary not evaluated)
           - Sid: CreateBackendAccessRoles
             Effect: Allow
             Action:
               - iam:CreateRole
               - iam:TagRole
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/GitHubOIDC-*-ResourceAccess"
+
+          # Allow attaching the permission boundary (enforces boundary)
+          - Sid: AttachPermissionBoundary
+            Effect: Allow
+            Action:
+              - iam:PutRolePermissionsBoundary
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/GitHubOIDC-*-ResourceAccess"
+            Condition:
+              StringEquals:
+                "iam:PermissionsBoundary": !Ref GitRepoMgmtPermissionBoundary
+
+          # Allow managing roles only if they have the boundary
+          - Sid: ManageTaggedBackendAccessRoles
+            Effect: Allow
+            Action:
               - iam:UntagRole
               - iam:ListRoleTags
               - iam:GetRole
@@ -456,6 +473,7 @@ Resources:
             Condition:
               StringEquals:
                 "iam:PermissionsBoundary": !Ref GitRepoMgmtPermissionBoundary
+
           # Allow deleting roles only if they have the permission boundary
           # This prevents deleting roles that don't belong to git-repo-mgmt
           - Sid: DeleteBackendAccessRoles
