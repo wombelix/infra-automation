@@ -594,6 +594,31 @@ Resources:
                 - KMSKeyId:
                     Fn::ImportValue:
                       !Sub ${KMSStackName}-KMSKeyBackendEncryptionName
+          # Allow creation / management of project specific ssh key
+          - Sid: SSMParameterSSHKeyWriteAccessPrimary
+            Effect: Allow
+            Action:
+              - ssm:PutParameter
+              - ssm:DeleteParameter
+              - ssm:AddTagsToResource
+              - ssm:RemoveTagsFromResource
+            Resource:
+              - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/projects/*/ssh-key"
+              - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/projects/*/ssh-key-pub"
+          - Sid: SSMParameterSSHKeyWriteAccessReplica
+            Effect: Allow
+            Action:
+              - ssm:PutParameter
+              - ssm:DeleteParameter
+              - ssm:AddTagsToResource
+              - ssm:RemoveTagsFromResource
+            Resource:
+              - !Sub
+                - "arn:${AWS::Partition}:ssm:${ReplicaRegion}:${AWS::AccountId}:parameter/projects/*/ssh-key"
+                - ReplicaRegion: !Ref ReplicaRegion
+              - !Sub
+                - "arn:${AWS::Partition}:ssm:${ReplicaRegion}:${AWS::AccountId}:parameter/projects/*/ssh-key-pub"
+                - ReplicaRegion: !Ref ReplicaRegion
 
 Outputs:
   OpenTofuRemoteBackendBucketName:
