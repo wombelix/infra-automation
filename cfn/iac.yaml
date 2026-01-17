@@ -595,6 +595,11 @@ Resources:
                     Fn::ImportValue:
                       !Sub ${KMSStackName}-KMSKeyBackendEncryptionName
           # Allow creation / management of project specific ssh key
+          - Sid: SSMDescribeParameters
+            Effect: Allow
+            Action:
+              - ssm:DescribeParameters
+            Resource: "*"
           - Sid: SSMParameterSSHKeyWriteAccessPrimary
             Effect: Allow
             Action:
@@ -603,7 +608,6 @@ Resources:
               - ssm:AddTagsToResource
               - ssm:RemoveTagsFromResource
               - ssm:GetParameter
-              - ssm:DescribeParameters
             Resource:
               - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/projects/*/ssh-key"
               - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/projects/*/ssh-key-pub"
@@ -615,7 +619,6 @@ Resources:
               - ssm:AddTagsToResource
               - ssm:RemoveTagsFromResource
               - ssm:GetParameter
-              - ssm:DescribeParameters
             Resource:
               - !Sub
                 - "arn:${AWS::Partition}:ssm:${ReplicaRegion}:${AWS::AccountId}:parameter/projects/*/ssh-key"
