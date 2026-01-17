@@ -608,6 +608,7 @@ Resources:
               - ssm:AddTagsToResource
               - ssm:RemoveTagsFromResource
               - ssm:GetParameter
+              - ssm:ListTagsForResource
             Resource:
               - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/projects/*/ssh-key"
               - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/projects/*/ssh-key-pub"
@@ -619,6 +620,7 @@ Resources:
               - ssm:AddTagsToResource
               - ssm:RemoveTagsFromResource
               - ssm:GetParameter
+              - ssm:ListTagsForResource
             Resource:
               - !Sub
                 - "arn:${AWS::Partition}:ssm:${ReplicaRegion}:${AWS::AccountId}:parameter/projects/*/ssh-key"
