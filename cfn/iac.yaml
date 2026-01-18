@@ -611,8 +611,12 @@ Resources:
               - ssm:GetParameters
               - ssm:ListTagsForResource
             Resource:
-              - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/projects/*/ssh-key"
-              - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/projects/*/ssh-key-pub"
+              - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/projects/*/ssh-private-key-openssh"
+              - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/projects/*/ssh-private-key-pem"
+              - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/projects/*/ssh-public-key-openssh"
+              - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/projects/*/ssh-public-key-pem"
+              - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/projects/*/ssh-key-fingerprint-md5"
+              - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/projects/*/ssh-key-fingerprint-sha256"
           - Sid: SSMParameterSSHKeyWriteAccessReplica
             Effect: Allow
             Action:
@@ -625,10 +629,22 @@ Resources:
               - ssm:ListTagsForResource
             Resource:
               - !Sub
-                - "arn:${AWS::Partition}:ssm:${ReplicaRegion}:${AWS::AccountId}:parameter/projects/*/ssh-key"
+                - "arn:${AWS::Partition}:ssm:${ReplicaRegion}:${AWS::AccountId}:parameter/projects/*/ssh-private-key-openssh"
                 - ReplicaRegion: !Ref ReplicaRegion
               - !Sub
-                - "arn:${AWS::Partition}:ssm:${ReplicaRegion}:${AWS::AccountId}:parameter/projects/*/ssh-key-pub"
+                - "arn:${AWS::Partition}:ssm:${ReplicaRegion}:${AWS::AccountId}:parameter/projects/*/ssh-private-key-pem"
+                - ReplicaRegion: !Ref ReplicaRegion
+              - !Sub
+                - "arn:${AWS::Partition}:ssm:${ReplicaRegion}:${AWS::AccountId}:parameter/projects/*/ssh-public-key-openssh"
+                - ReplicaRegion: !Ref ReplicaRegion
+              - !Sub
+                - "arn:${AWS::Partition}:ssm:${ReplicaRegion}:${AWS::AccountId}:parameter/projects/*/ssh-public-key-pem"
+                - ReplicaRegion: !Ref ReplicaRegion
+              - !Sub
+                - "arn:${AWS::Partition}:ssm:${ReplicaRegion}:${AWS::AccountId}:parameter/projects/*/ssh-key-fingerprint-md5"
+                - ReplicaRegion: !Ref ReplicaRegion
+              - !Sub
+                - "arn:${AWS::Partition}:ssm:${ReplicaRegion}:${AWS::AccountId}:parameter/projects/*/ssh-key-fingerprint-sha256"
                 - ReplicaRegion: !Ref ReplicaRegion
 
 Outputs:
