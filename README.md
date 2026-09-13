@@ -8,8 +8,10 @@ SPDX-License-Identifier: Apache-2.0
 
 Infrastructure-as-Code (IaC) for 'Automation' Account / Project
 
-[![REUSE status](https://api.reuse.software/badge/git.sr.ht/~wombelix/infra-automation)](https://api.reuse.software/info/git.sr.ht/~wombelix/infra-automation)
-[![builds.sr.ht status](https://builds.sr.ht/~wombelix/infra-automation.svg)](https://builds.sr.ht/~wombelix/infra-automation?)
+<!-- markdownlint-disable MD013 -->
+[![REUSE status](https://api.reuse.software/badge/github.com/wombelix/infra-automation)](https://api.reuse.software/info/github.com/wombelix/infra-automation)
+[![Mirror](https://github.com/wombelix/infra-automation/actions/workflows/mirror.yml/badge.svg)](https://github.com/wombelix/infra-automation/actions/workflows/mirror.yml)
+<!-- markdownlint-enable MD013 -->
 
 ## Table of Contents
 
@@ -73,32 +75,24 @@ created in the replica stack.
 ## Source
 
 The primary location is:
-[git.sr.ht/~wombelix/infra-automation](https://git.sr.ht/~wombelix/infra-automation)
+[github.com/wombelix/infra-automation](https://github.com/wombelix/infra-automation)
 
 Mirrors are available on
-[Codeberg](https://codeberg.org/wombelix/infra-automation),
-[Gitlab](https://gitlab.com/wombelix/infra-automation)
-and
-[GitHub](https://github.com/wombelix/infra-automation).
+[Codeberg](https://codeberg.org/wombelix/infra-automation) and
+[Gitlab](https://gitlab.com/wombelix/infra-automation).
 
 ## Contribute
 
-Please don't hesitate to provide feedback,
-open an issue, or create a Pull / Merge Request.
+Pick the platform you prefer and are most comfortable with.
 
-Just pick the workflow or platform you prefer and are most comfortable with.
-
-Feedback, bug reports, or patches sent to my sr.ht list
-[~wombelix/inbox@lists.sr.ht](https://lists.sr.ht/~wombelix/inbox) or via
-[Email and Instant Messaging](https://dominik.wombacher.cc/pages/contact.html)
-are also always welcome.
+Provide feedback, open an issue or create a pull / merge request.
 
 ## License
 
-Unless otherwise stated: `Apache-2.0`
+Unless otherwise stated: `Apache 2.0`
 
-All files contain license information either as
-`header comment` or `corresponding .license` file.
+All files contain license information either as a
+`header comment` or a `corresponding .license` file.
 
 [REUSE](https://reuse.software) from the [FSFE](https://fsfe.org/)
-implemented to verify license and copyright compliance.
+is implemented to verify license and copyright compliance.
