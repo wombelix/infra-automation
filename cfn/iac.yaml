@@ -495,6 +495,16 @@ Resources:
             Condition:
               StringEquals:
                 "iam:PermissionsBoundary": !Ref GitRepoMgmtPermissionBoundary
+          # Allow updating trust policies only if they have the permission boundary
+          - Sid: UpdateBackendAccessRoles
+            Effect: Allow
+            Action:
+              - iam:UpdateAssumeRolePolicy
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/GitHubOIDC-*-ResourceAccess"
+            Condition:
+              StringEquals:
+                "iam:PermissionsBoundary": !Ref GitRepoMgmtPermissionBoundary
           # Allow managing inline policies on the allowed roles (with boundary check)
           - Sid: ManageBackendAccessRolePolicies
             Effect: Allow
