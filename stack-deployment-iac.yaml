@@ -12,6 +12,8 @@ parameters:
   OpenTofuRemoteBackendDDBTableName: dominik-wombacher-iac-opentofu
   OpenTofuRemoteBackendRoleName: OpenTofuRemoteBackendRole
   GitRepoMgmtRoleName: GitRepoMgmtRole
+  ManagementAccountId: "992382651568"
+  AccountVendingRoleName: AccountVendingRole
   OpenTofuStateEncryptionRoleName: OpenTofuStateEncryptionRole
   ReplicaRegion: "eu-west-1"
 tags:

@@ -46,6 +46,16 @@ Parameters:
     Description: Name of the IAM role for git-repo-mgmt to create backend access roles
     AllowedPattern: '^[a-zA-Z0-9+=,.@_-]+$'
     ConstraintDescription: Must be a valid IAM role name (alphanumeric and +=,.@_- characters)
+  ManagementAccountId:
+    Type: String
+    Description: AWS Account ID of the organization management account
+    AllowedPattern: '^\d{12}$'
+    ConstraintDescription: Must be a valid 12-digit AWS Account ID
+  AccountVendingRoleName:
+    Type: String
+    Description: Name of the account vending role in the management account
+    AllowedPattern: '^[a-zA-Z0-9+=,.@_-]+$'
+    ConstraintDescription: Must be a valid IAM role name (alphanumeric and +=,.@_- characters)
   OpenTofuStateEncryptionRoleName:
     Type: String
     Description: Name of the IAM role for OpenTofu state encryption (KMS access)
@@ -550,6 +560,12 @@ Resources:
               - iam:GetPolicyVersion
             Resource:
               - !Ref GitRepoMgmtPermissionBoundary
+          # Allow assuming the account vending role in the management account
+          - Sid: AssumeAccountVendingRole
+            Effect: Allow
+            Action: sts:AssumeRole
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${ManagementAccountId}:role/${AccountVendingRoleName}"
           # Backend access for git-repo-mgmt own state file
           - Sid: S3ListBucket
             Effect: Allow
