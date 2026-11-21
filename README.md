@@ -25,7 +25,6 @@ Infrastructure-as-Code (IaC) for 'Automation' Account / Project
 ### Prerequisites
 
 * [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/)
-* [Rain](https://github.com/aws-cloudformation/rain)
 * [Task](https://taskfile.dev/)
 
 ### IAM Roles

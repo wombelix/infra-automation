@@ -20,21 +20,36 @@ tasks:
     cmd: task --list
 
   iam-cfn-roles:deploy:
-    desc: Deploy the IAM CloudFormation roles stack
+    desc: Deploy the IAM CloudFormation roles stack, shows the changes and asks first
+    # The script asks for confirmation on stdin
+    interactive: true
     cmds:
-      - rain deploy {{.IAM_CFN_ROLES_TEMPLATE}} {{.IAM_CFN_ROLES_STACK}} --region {{.AWS_REGION}} --yes
+      - ./scripts/cfn-deploy.sh deploy {{.IAM_CFN_ROLES_STACK}} {{.IAM_CFN_ROLES_TEMPLATE}} {{.AWS_REGION}}
 
   iam-cfn-roles:diff:
-    desc: Show changes between deployed stack and local template
+    desc: Show what a deploy of the local template would change, without applying it
     cmds:
-      - rain cat {{.IAM_CFN_ROLES_STACK}} --region {{.AWS_REGION}} > /tmp/infra-automation-iam-cfn-roles-deployed.yaml && rain diff /tmp/infra-automation-iam-cfn-roles-deployed.yaml {{.IAM_CFN_ROLES_TEMPLATE}}; rm -f /tmp/infra-automation-iam-cfn-roles-deployed.yaml
+      - ./scripts/cfn-deploy.sh preview {{.IAM_CFN_ROLES_STACK}} {{.IAM_CFN_ROLES_TEMPLATE}} {{.AWS_REGION}}
 
   iam-cfn-roles:logs:
-    desc: Show event logs for the IAM CloudFormation roles stack
+    desc: Show the latest events of the IAM CloudFormation roles stack
     cmds:
-      - rain logs {{.IAM_CFN_ROLES_STACK}} --region {{.AWS_REGION}}
+      - aws cloudformation describe-stack-events
+          --stack-name {{.IAM_CFN_ROLES_STACK}}
+          --max-items 25
+          --query 'StackEvents[].[Timestamp,LogicalResourceId,ResourceStatus,ResourceStatusReason]'
+          --output table
+          --region {{.AWS_REGION}}
+          --no-cli-pager
 
   iam-cfn-roles:rm:
-    desc: Delete the IAM CloudFormation roles stack
+    desc: Delete the IAM CloudFormation roles stack, the roles stay
+    prompt: Delete the stack {{.IAM_CFN_ROLES_STACK}}? The IAM roles stay because of DeletionPolicy Retain.
     cmds:
-      - rain rm {{.IAM_CFN_ROLES_STACK}} --region {{.AWS_REGION}}
+      - aws cloudformation delete-stack
+          --stack-name {{.IAM_CFN_ROLES_STACK}}
+          --region {{.AWS_REGION}}
+          --no-cli-pager
+      - aws cloudformation wait stack-delete-complete
+          --stack-name {{.IAM_CFN_ROLES_STACK}}
+          --region {{.AWS_REGION}}

@@ -1292,6 +1292,7 @@ $RECYCLE.BIN/
 *.swp
 secret*
 !go.mod
+!/scripts/
 **/collections/*/**
 **/roles/*/**
 .claude
