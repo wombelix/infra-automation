@@ -71,6 +71,15 @@ The IaC Replica must be deployed before IaC Primary because the primary S3
 bucket replication config references the replication IAM role
 created in the replica stack.
 
+### Account vending
+
+`GitRepoMgmtRole` in `cfn/iac.yaml` can assume `AccountVendingRole` in the
+management account, see infra-aws-org. git-repo-mgmt uses it to create, park
+and close project accounts.
+
+The permission boundary of the `GitHubOIDC-<repo>-ResourceAccess` roles allows
+`sts:AssumeRole` on `*-ProjectRole` in accounts of the organization.
+
 ## Source
 
 The primary location is:
