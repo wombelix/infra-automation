@@ -139,12 +139,20 @@ Resources:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
+          # Protect state history, plain deletes and version deletes
+          # Only the Identity Center admin role can clean up old states
+          # *.tflock is not covered, OpenTofu native locking deletes it on unlock
           - Sid: DenyDeletingOpenTofuStateFiles
             Effect: Deny
             Principal: "*"
-            Action: "s3:DeleteObject"
+            Action:
+              - "s3:DeleteObject"
+              - "s3:DeleteObjectVersion"
             Resource:
-              - !Sub "${OpenTofuRemoteBackendBucket.Arn}/*"
+              - !Sub "${OpenTofuRemoteBackendBucket.Arn}/opentofu-states/*.tfstate"
+            Condition:
+              ArnNotLike:
+                aws:PrincipalArn: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-reserved/sso.amazonaws.com/*AWSReservedSSO_AdministratorAccess_*"
           - Sid: RestrictToTLSRequestsOnly
             Principal: "*"
             Action: "s3:*"
